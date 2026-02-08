@@ -1,2 +1,3 @@
-# Framey
-Framey(Android Application)
+# framey
+
+A new Flutter project.
