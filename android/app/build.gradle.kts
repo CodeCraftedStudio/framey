@@ -5,9 +5,21 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+dependencies {
+    // ML Kit for face detection
+    implementation("com.google.mlkit:face-detection:16.1.6")
+    
+    // Biometric authentication
+    implementation("androidx.biometric:biometric:1.1.0")
+    
+    // Permission handling
+    implementation("androidx.activity:activity-ktx:1.8.2")
+    implementation("androidx.fragment:fragment-ktx:1.6.2")
+}
+
 android {
-    namespace = "com.example.framey"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.framey.gallery"
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -20,12 +32,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.framey"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        applicationId = "com.framey.gallery"
+        minSdk = 29
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
