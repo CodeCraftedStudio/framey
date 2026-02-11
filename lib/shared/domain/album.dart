@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum AlbumType { system, custom, ai_faces, ai_locations, hidden, recycle_bin }
+enum AlbumType { system, custom, hidden, recycle_bin }
 
 class Album extends Equatable {
   final String id;
@@ -43,10 +43,6 @@ class Album extends Equatable {
         return AlbumType.system;
       case 'custom':
         return AlbumType.custom;
-      case 'ai_faces':
-        return AlbumType.ai_faces;
-      case 'ai_locations':
-        return AlbumType.ai_locations;
       case 'hidden':
         return AlbumType.hidden;
       case 'recycle_bin':

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../../../shared/domain/album.dart';
 import '../../../shared/domain/media_item.dart';
 import '../../../shared/data/media_store_service.dart';
@@ -22,7 +23,11 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMediaItems();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadMediaItems();
+      }
+    });
   }
 
   Future<void> _loadMediaItems() async {
@@ -36,8 +41,14 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
 
     try {
       final album = ModalRoute.of(context)?.settings.arguments as Album?;
-      if (album == null) return;
+      if (album == null) {
+        debugPrint('Framey: AlbumDetailsScreen - No album provided');
+        return;
+      }
 
+      debugPrint('Framey: AlbumDetailsScreen - Loading album: ${album.name}');
+
+      // Load media items for this album
       final items = await MediaStoreService.getMediaItems(
         albumId: album.id,
         limit: 50,
@@ -55,8 +66,13 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
         _isLoading = false;
         _hasMore = items.length == 50;
         _currentPage++;
+        debugPrint(
+          'Framey: AlbumDetailsScreen - Loaded ${items.length} items for album ${album.name}',
+        );
       });
     } catch (e) {
+      debugPrint('Framey: AlbumDetailsScreen - Error loading album: $e');
+      if (!mounted) return;
       setState(() {
         _hasError = true;
         _errorMessage = 'Failed to load album: ${e.toString()}';
@@ -103,7 +119,28 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _refresh, child: const Text('Retry')),
+            ElevatedButton.icon(
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_mediaItems.isEmpty && !_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.photo_library_outlined,
+              size: 64,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            const Text('No media in this album'),
           ],
         ),
       );
@@ -113,24 +150,10 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_mediaItems.isEmpty) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.folder_outlined, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text(
-                'No media in this album',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    return RefreshIndicator(onRefresh: _refresh, child: _buildMediaGrid());
+  }
 
+  Widget _buildMediaGrid() {
     return GridView.builder(
       padding: const EdgeInsets.all(2),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

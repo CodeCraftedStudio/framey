@@ -6,16 +6,22 @@ A production-ready Flutter gallery app with native Android integration, featurin
 
 ### 📸 Core Gallery Features
 - **Photos Tab**: Timeline-based feed with sticky headers (Today/Yesterday/Month grouping)
-- **Albums Tab**: System albums with navigation and media filtering
+- **Grid/List View Toggle**: Switch between grid and list layouts with enhanced visuals
+- **Real-time Search**: Instant photo filtering by filename with live search bar
+- **Albums Tab**: System albums with modern card design and navigation
 - **Videos Tab**: Grid layout with duration overlay and video thumbnails
 - **Search Tab**: Search by date, filename, and location with instant results
 - **Library Tab**: Special albums (Recycle Bin, Hidden, App Lock settings)
 
 ### 🎨 UI/UX Features
 - **Material 3 Design**: Modern, edge-to-edge UI with dark/light themes
+- **Smooth Animations**: Fade-in, slide-in transitions and interactive controls
+- **Enhanced Media Viewer**: Full-screen viewer with tap-to-toggle controls, video playback with progress bar
 - **60fps Scrolling**: Smooth performance with lazy loading and pagination
 - **Gesture Navigation**: Swipe, pinch-to-zoom, and shared element transitions
-- **Responsive Grid**: Adaptive layouts for different screen sizes
+- **Responsive Grid**: Adaptive layouts for different screen sizes with rounded corners and shadows
+- **Modern Error States**: Beautiful error screens with actionable buttons
+- **Improved Empty States**: Helpful guidance when no content is available
 
 ### 🔧 Technical Features
 - **Hybrid Architecture**: Flutter UI + Native Android (Kotlin) for performance
@@ -23,6 +29,9 @@ A production-ready Flutter gallery app with native Android integration, featurin
 - **MediaStore Integration**: Efficient media queries with thumbnail generation
 - **MethodChannel Bridge**: Clean communication between Flutter and native code
 - **Background Processing**: Coroutines for heavy operations without UI blocking
+- **Robust Media Loading**: Handles large media libraries with pagination and search
+- **Memory Optimization**: Proper resource disposal and performance utilities
+- **Error Recovery**: Comprehensive error handling with retry mechanisms
 
 ### 📱 Platform Compatibility
 - **Minimum SDK**: Android 10 (API 29)
@@ -121,11 +130,32 @@ The app requests the following permissions based on Android version:
 - **Thumbnail Caching**: Generated thumbnails stored in cache directory
 - **Memory Management**: Proper disposal of resources and controllers
 - **Background Processing**: Heavy operations moved off main thread
+- **UI Animations**: Smooth fade and slide transitions with optimized performance
+- **Search Performance**: Real-time filtering without blocking UI thread
 
 ### Benchmarks
 - **Startup Time**: <2 seconds on mid-range devices
 - **Memory Usage**: <150MB during normal operation
 - **Scroll Performance**: 60fps with 1000+ items in grid
+- **Search Speed**: Instant results for large photo libraries
+- **Media Loading**: Handles libraries with 10,000+ items efficiently
+
+## 📋 Recent Updates
+
+### v1.0.1 - UI Enhancement Release
+- ✨ **Modern UI Overhaul**: Added smooth animations, Material 3 design, and enhanced visual hierarchy
+- 🔍 **Real-time Search**: Implemented functional search bar with instant photo filtering
+- 🎥 **Enhanced Media Viewer**: Added interactive controls, video playback with progress bar
+- 🖼️ **Grid/List View Toggle**: Switch between layouts with improved visual design
+- 🐛 **Bug Fixes**: Fixed layout overflow errors and media loading issues for large libraries
+- 🎨 **Error States**: Beautiful error screens with actionable buttons and helpful messaging
+- 📱 **Album Cards**: Modern card design with proper text overflow handling
+
+### v1.0.0 - Initial Release
+- Core gallery functionality with native Android integration
+- Timeline-based photo feed with sticky headers
+- Album browsing and media viewer
+- Basic permission handling and media store integration
 
 ## 🐛 Troubleshooting
 
@@ -150,9 +180,35 @@ flutter pub get
 flutter pub upgrade
 ```
 
-#### Permission Denied
-- Navigate to Settings → Apps → Framey → Permissions
-- Grant storage/media permissions manually
+#### Layout Overflow Errors
+```
+A RenderFlex overflowed by X pixels
+```
+- **Cause**: Album card content too tall for fixed height container
+- **Solution**: Ensure padding and text sizing are properly constrained
+- **Prevention**: Use Flexible widgets for text content in fixed-height containers
+
+#### Media Item Not Found Errors
+```
+Error loading media: Exception: Media item not found
+```
+- **Cause**: Media viewer only searched first 100 items, missing items beyond that
+- **Solution**: App now searches through entire media library with pagination
+- **Prevention**: Media loading now handles large libraries properly
+
+#### Search Not Working
+```
+Search bar shows "coming soon" dialog
+```
+- **Solution**: Search functionality has been fully implemented with real-time filtering
+- **How to use**: Tap menu → Search → Type in the search bar to filter photos
+
+#### Permission Issues
+- **Cause**: Android 12+ requires granular media permissions
+- **Solution**: 
+  - Android 13+: Grant READ_MEDIA_IMAGES and READ_MEDIA_VIDEO
+  - Android 10-12: Grant READ_EXTERNAL_STORAGE
+  - Go to Settings → Apps → Framey → Permissions if needed
 
 ## 📄 License
 

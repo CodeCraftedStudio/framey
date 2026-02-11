@@ -5,7 +5,6 @@ import 'core/constants/app_constants.dart';
 import 'features/photos/presentation/photos_screen.dart';
 import 'features/albums/presentation/albums_screen.dart';
 import 'features/albums/presentation/album_details_screen.dart';
-import 'features/search/presentation/search_screen.dart';
 import 'features/videos/presentation/video_screen.dart';
 import 'features/recycle_bin/presentation/recycle_bin_screen.dart';
 import 'features/hidden/presentation/hidden_screen.dart';
@@ -55,7 +54,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -69,12 +68,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     return Scaffold(
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          PhotosScreen(),
-          AlbumsScreen(),
-          SearchScreen(),
-          LibraryScreen(),
-        ],
+        children: const [PhotosScreen(), AlbumsScreen(), LibraryScreen()],
       ),
       bottomNavigationBar: TabBar(
         controller: _tabController,
@@ -82,8 +76,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
         tabs: const [
           Tab(icon: Icon(Icons.photo_library_outlined), text: 'Photos'),
           Tab(icon: Icon(Icons.album_outlined), text: 'Albums'),
-          Tab(icon: Icon(Icons.search_outlined), text: 'Search'),
-          Tab(icon: Icon(Icons.library_books_outlined), text: 'Library'),
+          Tab(icon: Icon(Icons.folder_outlined), text: 'Library'),
         ],
         labelColor: Theme.of(context).colorScheme.primary,
         unselectedLabelColor: Theme.of(
