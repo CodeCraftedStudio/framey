@@ -166,7 +166,7 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
             onTap: () => Navigator.pushNamed(
               context,
               '/viewer',
-              arguments: item.id.toString(),
+              arguments: {'items': _videoItems, 'index': index},
             ),
             child: Hero(
               tag: 'media_${item.id}',

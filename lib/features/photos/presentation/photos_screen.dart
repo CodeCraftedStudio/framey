@@ -188,18 +188,18 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            // This normally should switch tab, but for now we can navigate to a search overlay if needed
+            // Or just show a message or switch tab if ref allows.
+            // Let's assume the user wants a search button here too.
+          },
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.favorite_rounded,
-              size: 20,
-              color: Colors.redAccent,
-            ),
+            child: const Icon(Icons.search_rounded, size: 20),
           ),
         ),
         const SizedBox(width: 8),
@@ -211,7 +211,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
               context,
             ).colorScheme.primary.withOpacity(0.1),
             child: Text(
-              'U',
+              'A',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
@@ -351,9 +351,43 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
             onTap: () => _onMediaItemTap(item),
             child: Hero(
               tag: 'media_${item.id}',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: _buildThumbnail(item),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildThumbnail(item),
+                      if (item.type == 'video')
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.4),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           );

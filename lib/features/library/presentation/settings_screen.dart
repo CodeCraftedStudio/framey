@@ -31,7 +31,7 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _buildSectionHeader('Appearance'),
+          _buildSectionHeader('Appearance', context),
           _buildSwitchTile(
             'Dark Mode',
             'Use dark theme across the app',
@@ -46,7 +46,7 @@ class SettingsScreen extends ConsumerWidget {
             context,
           ),
           const SizedBox(height: 32),
-          _buildSectionHeader('Storage & Data'),
+          _buildSectionHeader('Storage & Data', context),
           _buildListTile(
             'Clear Cache',
             'Free up space used by thumbnails',
@@ -61,7 +61,7 @@ class SettingsScreen extends ConsumerWidget {
             context,
           ),
           const SizedBox(height: 32),
-          _buildSectionHeader('Security'),
+          _buildSectionHeader('Security', context),
           _buildListTile(
             'App Lock',
             'Biometric / PIN',
@@ -80,7 +80,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16, left: 4),
       child: Text(
@@ -88,7 +88,7 @@ class SettingsScreen extends ConsumerWidget {
         style: GoogleFonts.plusJakartaSans(
           fontSize: 16,
           fontWeight: FontWeight.w800,
-          color: Colors.blue,
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );
@@ -100,28 +100,48 @@ class SettingsScreen extends ConsumerWidget {
     IconData icon,
     BuildContext context,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: isDark
+            ? Border.all(color: Colors.white.withOpacity(0.05))
+            : null,
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: ListTile(
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: Theme.of(context).colorScheme.primary,
+            size: 20,
+          ),
+        ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
+          style: TextStyle(fontSize: 11, color: Colors.grey.withOpacity(0.8)),
         ),
         trailing: const Icon(Icons.chevron_right_rounded, size: 20),
         onTap: () {},
@@ -136,27 +156,36 @@ class SettingsScreen extends ConsumerWidget {
     ValueChanged<bool> onChanged,
     BuildContext context,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: isDark
+            ? Border.all(color: Colors.white.withOpacity(0.05))
+            : null,
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: SwitchListTile(
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
+          style: TextStyle(fontSize: 11, color: Colors.grey.withOpacity(0.8)),
         ),
         value: value,
         onChanged: onChanged,

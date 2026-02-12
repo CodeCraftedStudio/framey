@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/domain/media_item.dart';
+import '../../../shared/data/media_store_service.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -14,6 +17,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<MediaItem> _searchResults = [];
   bool _isSearching = false;
+  bool _isLoading = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -23,6 +28,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -40,7 +46,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (!_isSearching) {
         setState(() => _isSearching = true);
       }
-      // TODO: Implement debounced search
+
+      if (_debounce?.isActive ?? false) _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 500), () {
+        _performSearch(query);
+      });
+    }
+  }
+
+  Future<void> _performSearch(String query) async {
+    setState(() => _isLoading = true);
+    try {
+      final items = await MediaStoreService.getMediaItems(searchQuery: query);
+      setState(() {
+        _searchResults = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -362,13 +385,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildSearchResultsGrid() {
-    return SliverPadding(
-      padding: const EdgeInsets.all(20),
-      sliver: SliverToBoxAdapter(
-        child: Center(
+    if (_isLoading) {
+      return const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_searchResults.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 100),
           child: Column(
             children: [
-              const SizedBox(height: 100),
               Icon(
                 Icons.search_off_rounded,
                 size: 64,
@@ -386,6 +414,42 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ],
           ),
         ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: 1,
+        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final item = _searchResults[index];
+          return GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                '/viewer',
+                arguments: {'items': _searchResults, 'index': index},
+              );
+            },
+            child: Hero(
+              tag: 'media_${item.id}',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: item.thumbnailUri != null
+                    ? Image.file(File(item.thumbnailUri!), fit: BoxFit.cover)
+                    : Container(
+                        color: Colors.grey.withOpacity(0.1),
+                        child: const Icon(Icons.image),
+                      ),
+              ),
+            ),
+          );
+        }, childCount: _searchResults.length),
       ),
     );
   }

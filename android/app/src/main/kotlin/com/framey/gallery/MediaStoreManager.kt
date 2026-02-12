@@ -66,12 +66,30 @@ class MediaStoreManager(private val context: Context) {
         prefs.edit().putString("trashed_items", obj.toString()).apply()
     }
 
+    private fun getHiddenItems(): Set<Long> {
+        val json = prefs.getString("hidden_items", "[]") ?: "[]"
+        val arr = JSONArray(json)
+        val set = mutableSetOf<Long>()
+        for (i in 0 until arr.length()) {
+            set.add(arr.getLong(i))
+        }
+        return set
+    }
+
+    private fun saveHiddenItems(set: Set<Long>) {
+        val arr = JSONArray()
+        set.forEach { arr.put(it) }
+        prefs.edit().putString("hidden_items", arr.toString()).apply()
+    }
+
     suspend fun getMediaItems(
         albumId: String? = null,
         mediaType: String? = null,
         limit: Int = 50,
         offset: Int = 0,
-        includeTrashed: Boolean = false
+        includeTrashed: Boolean = false,
+        includeHidden: Boolean = false,
+        searchQuery: String? = null
     ): Result<List<MediaItem>> = withContext(Dispatchers.IO) {
         try {
             val mediaList = mutableListOf<MediaItem>()
@@ -79,9 +97,15 @@ class MediaStoreManager(private val context: Context) {
             val selectionArgs = mutableListOf<String>()
             
             val trashedIds = getTrashedItems().keys
+            val hiddenIds = getHiddenItems()
             
             if (!includeTrashed && trashedIds.isNotEmpty()) {
                 selection.append("${MediaStore.MediaColumns._ID} NOT IN (${trashedIds.joinToString(",")})")
+            }
+
+            if (!includeHidden && !includeTrashed && hiddenIds.isNotEmpty()) {
+                if (selection.isNotEmpty()) selection.append(" AND ")
+                selection.append("${MediaStore.MediaColumns._ID} NOT IN (${hiddenIds.joinToString(",")})")
             }
             
             if (albumId != null) {
@@ -102,6 +126,13 @@ class MediaStoreManager(private val context: Context) {
                         selectionArgs.add("video/%")
                     }
                 }
+            }
+
+            if (searchQuery != null && searchQuery.isNotEmpty()) {
+                if (selection.isNotEmpty()) selection.append(" AND ")
+                selection.append("(${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ? OR ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?)")
+                selectionArgs.add("%$searchQuery%")
+                selectionArgs.add("%$searchQuery%")
             }
             
             val projection = arrayOf(
@@ -148,7 +179,10 @@ class MediaStoreManager(private val context: Context) {
                     
                     // If we are looking for trashed items, only include them
                     if (includeTrashed && !trashedIds.contains(id)) continue
-                    // If we are looking for regular items, only include them (already handled by SQL selection if trashedIds not empty)
+                    // If we are looking for hidden items, only include them
+                    if (includeHidden && !hiddenIds.contains(id)) continue
+                    // Regular items handling already partially done via SQL, but for safety:
+                    if (!includeTrashed && !includeHidden && (trashedIds.contains(id) || hiddenIds.contains(id))) continue
                     
                     if (currentPosition >= offset && itemsAdded < limit) {
                         val name = cursor.getString(nameColumn)
@@ -193,47 +227,68 @@ class MediaStoreManager(private val context: Context) {
     
     suspend fun getAlbums(): Result<List<Album>> = withContext(Dispatchers.IO) {
         try {
-            val albumList = mutableListOf<Album>()
-            val projection = arrayOf(
-                MediaStore.Images.Media.BUCKET_ID,
-                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-                MediaStore.Images.Media._ID
-            )
-            
-            // Exclude trashed items from album counts
             val trashedIds = getTrashedItems().keys
-            val selection = if (trashedIds.isNotEmpty()) {
-                "${MediaStore.MediaColumns._ID} NOT IN (${trashedIds.joinToString(",")})"
+            val hiddenIds = getHiddenItems()
+            val excluded = (trashedIds + hiddenIds).joinToString(",")
+            val selection = if (excluded.isNotEmpty()) {
+                "${MediaStore.MediaColumns._ID} NOT IN ($excluded)"
             } else null
 
-            val query = context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                null,
-                "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME}"
-            )
-            
             val bucketCounts = mutableMapOf<String, Int>()
-            query?.use { cursor ->
-                val bucketNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
-                while (cursor.moveToNext()) {
-                    val bucketName = cursor.getString(bucketNameColumn) ?: "Unknown"
-                    bucketCounts[bucketName] = bucketCounts.getOrDefault(bucketName, 0) + 1
+            val bucketCovers = mutableMapOf<String, String?>()
+            val bucketLastModified = mutableMapOf<String, Long>()
+            val bucketIds = mutableMapOf<String, String>()
+
+            val uris = arrayOf(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            )
+
+            for (uri in uris) {
+                val projection = arrayOf(
+                    MediaStore.MediaColumns.BUCKET_ID,
+                    MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
+                    MediaStore.MediaColumns._ID,
+                    MediaStore.MediaColumns.DATE_MODIFIED
+                )
+                
+                context.contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
+                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                    val bucketNameColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
+                    val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_ID)
+                    val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+
+                    while (cursor.moveToNext()) {
+                        val bucketName = cursor.getString(bucketNameColumn) ?: "Unknown"
+                        val bucketId = cursor.getString(bucketIdColumn)
+                        val mediaId = cursor.getLong(idColumn)
+                        val dateModified = cursor.getLong(dateModifiedColumn)
+                        
+                        bucketCounts[bucketName] = bucketCounts.getOrDefault(bucketName, 0) + 1
+                        bucketIds[bucketName] = bucketId
+                        
+                        if (!bucketCovers.containsKey(bucketName)) {
+                            bucketCovers[bucketName] = ContentUris.withAppendedId(uri, mediaId).toString()
+                        }
+                        
+                        val currentLast = bucketLastModified.getOrDefault(bucketName, 0L)
+                        if (dateModified > currentLast) {
+                            bucketLastModified[bucketName] = dateModified
+                        }
+                    }
                 }
             }
             
-            bucketCounts.forEach { (bucketName, count) ->
-                albumList.add(Album(
-                    id = bucketName,
-                    name = bucketName,
+            val albumList = bucketCounts.map { (name, count) ->
+                Album(
+                    id = bucketIds[name] ?: name,
+                    name = name,
                     type = "system",
-                    coverUri = null,
+                    coverUri = bucketCovers[name],
                     mediaCount = count,
-                    lastModified = null,
-                    metadata = null
-                ))
-            }
+                    lastModified = bucketLastModified[name]
+                )
+            }.toMutableList()
             
             albumList.addAll(getSpecialAlbums())
             Result.success(albumList)
@@ -244,11 +299,34 @@ class MediaStoreManager(private val context: Context) {
     
     private fun getSpecialAlbums(): List<Album> {
         val trashedCount = getTrashedItems().size
+        val hiddenCount = getHiddenItems().size
         return listOf(
             Album(id = "-1", name = "Favorites", type = "custom", coverUri = null, mediaCount = 0, lastModified = null),
-            Album(id = "-2", name = "Hidden", type = "hidden", coverUri = null, mediaCount = 0, lastModified = null),
+            Album(id = "-2", name = "Hidden", type = "hidden", coverUri = null, mediaCount = hiddenCount, lastModified = null),
             Album(id = "-3", name = "Recycle Bin", type = "recycle_bin", coverUri = null, mediaCount = trashedCount, lastModified = null),
         )
+    }
+
+    suspend fun hideMediaItem(mediaId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val hidden = getHiddenItems().toMutableSet()
+            hidden.add(mediaId)
+            saveHiddenItems(hidden)
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun unhideMediaItem(mediaId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val hidden = getHiddenItems().toMutableSet()
+            hidden.remove(mediaId)
+            saveHiddenItems(hidden)
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
     
     private fun generateThumbnail(context: Context, uri: Uri, mimeType: String?): String? {

@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:local_auth/local_auth.dart';
 import '../../../shared/domain/media_item.dart';
+import '../../../shared/data/media_store_service.dart';
 
 class HiddenScreen extends ConsumerStatefulWidget {
   const HiddenScreen({super.key});
@@ -14,8 +16,83 @@ class HiddenScreen extends ConsumerStatefulWidget {
 class _HiddenScreenState extends ConsumerState<HiddenScreen> {
   bool _isAuthenticated = false;
   List<MediaItem> _hiddenItems = [];
+  bool _isLoading = false;
+  final LocalAuthentication _auth = LocalAuthentication();
 
   @override
+  void initState() {
+    super.initState();
+    _authenticate();
+  }
+
+  Future<void> _authenticate() async {
+    try {
+      final bool canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
+      final bool canAuthenticate =
+          canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
+
+      if (canAuthenticate) {
+        final bool didAuthenticate = await _auth.authenticate(
+          localizedReason: 'Please authenticate to access your hidden locker',
+          options: const AuthenticationOptions(
+            stickyAuth: true,
+            biometricOnly: false,
+          ),
+        );
+        if (didAuthenticate) {
+          setState(() => _isAuthenticated = true);
+          _loadHiddenItems();
+        }
+      } else {
+        // Fallback or show message
+        setState(
+          () => _isAuthenticated = true,
+        ); // For now just bypass if not supported
+        _loadHiddenItems();
+      }
+    } catch (e) {
+      debugPrint('Auth error: $e');
+    }
+  }
+
+  Future<void> _loadHiddenItems() async {
+    setState(() => _isLoading = true);
+    try {
+      final items = await MediaStoreService.getMediaItems(
+        includeHidden: true,
+        limit: 100,
+      );
+      setState(() {
+        _hiddenItems = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _unhideItem(MediaItem item) async {
+    try {
+      final success = await MediaStoreService.unhideMediaItem(
+        int.parse(item.id),
+      );
+      if (success) {
+        _loadHiddenItems();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Item restored to gallery')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+      }
+    }
+  }
+
   Widget build(BuildContext context) {
     if (!_isAuthenticated) return _buildAuthScreen();
 
@@ -34,7 +111,11 @@ class _HiddenScreenState extends ConsumerState<HiddenScreen> {
           ),
         ),
       ),
-      body: _hiddenItems.isEmpty ? _buildEmptyState() : _buildGrid(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _hiddenItems.isEmpty
+          ? _buildEmptyState()
+          : _buildGrid(),
     );
   }
 
@@ -79,7 +160,7 @@ class _HiddenScreenState extends ConsumerState<HiddenScreen> {
               width: double.infinity,
               height: 56,
               child: FilledButton(
-                onPressed: () => setState(() => _isAuthenticated = true),
+                onPressed: _authenticate,
                 child: const Text('Unlock with Biometrics'),
               ),
             ),
@@ -143,14 +224,87 @@ class _HiddenScreenState extends ConsumerState<HiddenScreen> {
       itemCount: _hiddenItems.length,
       itemBuilder: (context, index) {
         final item = _hiddenItems[index];
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: item.thumbnailUri != null
-              ? Image.file(File(item.thumbnailUri!), fit: BoxFit.cover)
-              : Container(
-                  color: Colors.grey.withOpacity(0.1),
-                  child: const Icon(Icons.image),
+        return GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/viewer',
+              arguments: {'items': _hiddenItems, 'index': index},
+            );
+          },
+          onLongPress: () {
+            showModalBottomSheet(
+              context: context,
+              builder: (c) => SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.visibility_rounded),
+                      title: const Text('Restore to Gallery'),
+                      onTap: () {
+                        Navigator.pop(c);
+                        _unhideItem(item);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.delete_forever_rounded,
+                        color: Colors.red,
+                      ),
+                      title: const Text(
+                        'Delete Forever',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      onTap: () async {
+                        Navigator.pop(c);
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (d) => AlertDialog(
+                            title: const Text('Delete Permanently?'),
+                            content: const Text(
+                              'This action cannot be undone.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(d, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(d, true),
+                                child: const Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          await MediaStoreService.deletePermanently(
+                            int.parse(item.id),
+                          );
+                          _loadHiddenItems();
+                        }
+                      },
+                    ),
+                  ],
                 ),
+              ),
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Hero(
+              tag: 'media_${item.id}',
+              child: item.thumbnailUri != null
+                  ? Image.file(File(item.thumbnailUri!), fit: BoxFit.cover)
+                  : Container(
+                      color: Colors.grey.withOpacity(0.1),
+                      child: const Icon(Icons.image),
+                    ),
+            ),
+          ),
         );
       },
     );

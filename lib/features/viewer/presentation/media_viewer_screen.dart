@@ -379,6 +379,46 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                 },
               ),
               _buildBarItem(
+                Icons.lock_outline_rounded,
+                'Lock',
+                onTap: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      title: const Text('Move to Hidden Folder?'),
+                      content: const Text(
+                        'This item will be hidden from the main gallery and will require authentication to view.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(c, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(c, true),
+                          child: const Text(
+                            'Hide',
+                            style: TextStyle(color: Colors.blue),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmed == true) {
+                    final success = await MediaStoreService.hideMediaItem(
+                      int.parse(currentItem.id),
+                    );
+                    if (success && mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Moved to Hidden Folder')),
+                      );
+                    }
+                  }
+                },
+              ),
+              _buildBarItem(
                 Icons.delete_outline_rounded,
                 'Delete',
                 color: Colors.redAccent,

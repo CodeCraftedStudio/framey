@@ -43,6 +43,8 @@ class MainActivity : FlutterActivity() {
                 "requestPermissions" -> handleRequestPermissions(call, result)
                 "deletePermanently" -> handleDeletePermanently(call, result)
                 "emptyRecycleBin" -> handleEmptyRecycleBin(call, result)
+                "hideMediaItem" -> handleHideMediaItem(call, result)
+                "unhideMediaItem" -> handleUnhideMediaItem(call, result)
                 else -> result.notImplemented()
             }
         }
@@ -154,10 +156,12 @@ class MainActivity : FlutterActivity() {
         val limit = call.argument<Int>("limit") ?: 50
         val offset = call.argument<Int>("offset") ?: 0
         val includeTrashed = call.argument<Boolean>("includeTrashed") ?: false
+        val includeHidden = call.argument<Boolean>("includeHidden") ?: false
+        val searchQuery = call.argument<String?>("searchQuery")
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val mediaResult = mediaStoreManager.getMediaItems(albumId, mediaType, limit, offset, includeTrashed)
+                val mediaResult = mediaStoreManager.getMediaItems(albumId, mediaType, limit, offset, includeTrashed, includeHidden, searchQuery)
                 mediaResult.fold(
                     onSuccess = { mediaItems ->
                         val jsonList = mediaItems.map { mediaItem ->
@@ -230,7 +234,7 @@ class MainActivity : FlutterActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val deleteResult = mediaStoreManager.deleteMediaItem(mediaId)
+                val deleteResult = mediaStoreManager.moveToRecycleBin(mediaId)
                 deleteResult.fold(
                     onSuccess = { success ->
                         runOnUiThread { result.success(success) }
@@ -327,6 +331,54 @@ class MainActivity : FlutterActivity() {
                     },
                     onFailure = { exception ->
                         runOnUiThread { result.error("EMPTY_ERROR", exception.message, null) }
+                    }
+                )
+            } catch (e: Exception) {
+                runOnUiThread { result.error("UNKNOWN_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    private fun handleHideMediaItem(call: MethodCall, result: MethodChannel.Result) {
+        val mediaId = call.argument<Long>("mediaId")
+        if (mediaId == null) {
+            result.error("INVALID_ARGUMENT", "mediaId is required", null)
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val hideResult = mediaStoreManager.hideMediaItem(mediaId)
+                hideResult.fold(
+                    onSuccess = { success ->
+                        runOnUiThread { result.success(success) }
+                    },
+                    onFailure = { exception ->
+                        runOnUiThread { result.error("HIDE_ERROR", exception.message, null) }
+                    }
+                )
+            } catch (e: Exception) {
+                runOnUiThread { result.error("UNKNOWN_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    private fun handleUnhideMediaItem(call: MethodCall, result: MethodChannel.Result) {
+        val mediaId = call.argument<Long>("mediaId")
+        if (mediaId == null) {
+            result.error("INVALID_ARGUMENT", "mediaId is required", null)
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val unhideResult = mediaStoreManager.unhideMediaItem(mediaId)
+                unhideResult.fold(
+                    onSuccess = { success ->
+                        runOnUiThread { result.success(success) }
+                    },
+                    onFailure = { exception ->
+                        runOnUiThread { result.error("UNHIDE_ERROR", exception.message, null) }
                     }
                 )
             } catch (e: Exception) {

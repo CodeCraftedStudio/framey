@@ -17,6 +17,8 @@ class MediaStoreService {
     int limit = AppConstants.defaultPageSize,
     int offset = 0,
     bool includeTrashed = false,
+    bool includeHidden = false,
+    String? searchQuery,
   }) async {
     debugPrint(
       'Framey: Flutter calling getMediaItems - albumId: $albumId, mediaType: $mediaType, limit: $limit, offset: $offset',
@@ -29,6 +31,8 @@ class MediaStoreService {
             'limit': limit,
             'offset': offset,
             'includeTrashed': includeTrashed,
+            'includeHidden': includeHidden,
+            'searchQuery': searchQuery,
           });
 
       debugPrint(
@@ -180,6 +184,38 @@ class MediaStoreService {
   static Future<bool> emptyRecycleBin() async {
     try {
       final result = await _channel.invokeMethod<bool>('emptyRecycleBin');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      throw MediaStoreException(
+        e.message ?? 'Unknown platform error',
+        code: e.code,
+      );
+    } catch (e) {
+      throw MediaStoreException('Unexpected error: ${e.toString()}');
+    }
+  }
+
+  static Future<bool> hideMediaItem(int mediaId) async {
+    try {
+      final result = await _channel.invokeMethod<bool>('hideMediaItem', {
+        'mediaId': mediaId,
+      });
+      return result ?? false;
+    } on PlatformException catch (e) {
+      throw MediaStoreException(
+        e.message ?? 'Unknown platform error',
+        code: e.code,
+      );
+    } catch (e) {
+      throw MediaStoreException('Unexpected error: ${e.toString()}');
+    }
+  }
+
+  static Future<bool> unhideMediaItem(int mediaId) async {
+    try {
+      final result = await _channel.invokeMethod<bool>('unhideMediaItem', {
+        'mediaId': mediaId,
+      });
       return result ?? false;
     } on PlatformException catch (e) {
       throw MediaStoreException(

@@ -102,6 +102,25 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
           ),
         ),
       ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: Colors.black.withOpacity(0.3),
+            child: IconButton(
+              onPressed: () {
+                // Feature coming soon
+              },
+              icon: const Icon(
+                Icons.search_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         title: Column(
@@ -186,7 +205,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
               tag: 'media_${item.id}',
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -196,7 +215,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
