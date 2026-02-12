@@ -59,7 +59,7 @@ class AboutScreen extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              'Made with ❤️ by DeepMind Team',
+              'Made with ❤️ by CodeCrafted Studio Team',
               style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
             ),
             const SizedBox(height: 40),

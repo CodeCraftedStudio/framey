@@ -1,6 +1,7 @@
 package com.framey.gallery
 
 import android.content.Context
+import android.content.ContentUris
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -249,7 +250,8 @@ class MediaStoreManager(private val context: Context) {
                     MediaStore.MediaColumns.BUCKET_ID,
                     MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
                     MediaStore.MediaColumns._ID,
-                    MediaStore.MediaColumns.DATE_MODIFIED
+                    MediaStore.MediaColumns.DATE_MODIFIED,
+                    MediaStore.MediaColumns.DATA
                 )
                 
                 context.contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
@@ -257,18 +259,20 @@ class MediaStoreManager(private val context: Context) {
                     val bucketNameColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
                     val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_ID)
                     val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+                    val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
 
                     while (cursor.moveToNext()) {
                         val bucketName = cursor.getString(bucketNameColumn) ?: "Unknown"
                         val bucketId = cursor.getString(bucketIdColumn)
                         val mediaId = cursor.getLong(idColumn)
                         val dateModified = cursor.getLong(dateModifiedColumn)
+                        val dataPath = cursor.getString(dataColumn)
                         
                         bucketCounts[bucketName] = bucketCounts.getOrDefault(bucketName, 0) + 1
                         bucketIds[bucketName] = bucketId
                         
                         if (!bucketCovers.containsKey(bucketName)) {
-                            bucketCovers[bucketName] = ContentUris.withAppendedId(uri, mediaId).toString()
+                            bucketCovers[bucketName] = dataPath ?: ContentUris.withAppendedId(uri, mediaId).toString()
                         }
                         
                         val currentLast = bucketLastModified.getOrDefault(bucketName, 0L)

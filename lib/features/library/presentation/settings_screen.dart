@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/providers/theme_provider.dart';
+import '../../../core/providers/language_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -47,18 +48,20 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _buildListTile(
             'Theme Color',
-            'Deep Purple (Default)',
+            _getColorName(ref.watch(themeProvider).primaryColor),
             Icons.palette_rounded,
             theme,
+            onTap: () => _showColorPicker(context, ref),
           ),
 
           const SizedBox(height: 32),
           _buildSectionHeader('General', theme),
           _buildListTile(
             'Language',
-            'English (United States)',
+            ref.watch(languageProvider).name,
             Icons.language_rounded,
             theme,
+            onTap: () => _showLanguagePicker(context, ref),
           ),
           _buildListTile(
             'Date Format',
@@ -135,8 +138,9 @@ class SettingsScreen extends ConsumerWidget {
     String title,
     String subtitle,
     IconData icon,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -184,9 +188,182 @@ class SettingsScreen extends ConsumerWidget {
           size: 20,
           color: theme.colorScheme.onSurface.withOpacity(0.3),
         ),
-        onTap: () {},
+        onTap: onTap,
       ),
     );
+  }
+
+  void _showColorPicker(BuildContext context, WidgetRef ref) {
+    final colors = [
+      const Color(0xFF137FEC), // Blue
+      const Color(0xFF8B5CF6), // Purple
+      const Color(0xFFEC4899), // Pink
+      const Color(0xFFF43F5E), // Rose
+      const Color(0xFFF59E0B), // Amber
+      const Color(0xFF10B981), // Emerald
+      const Color(0xFF06B6D4), // Cyan
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Select Theme Color',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: colors.map((color) {
+                final isSelected =
+                    ref.watch(themeProvider).primaryColor == color;
+                return GestureDetector(
+                  onTap: () {
+                    ref.read(themeProvider.notifier).setPrimaryColor(color);
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: isSelected
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              width: 3,
+                            )
+                          : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check_rounded, color: Colors.white)
+                        : null,
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLanguagePicker(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Select Language',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...AppLanguage.values.map((lang) {
+              final isSelected = ref.watch(languageProvider) == lang;
+              return ListTile(
+                onTap: () {
+                  ref.read(languageProvider.notifier).setLanguage(lang);
+                  Navigator.pop(context);
+                },
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.language_rounded,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey,
+                    size: 20,
+                  ),
+                ),
+                title: Text(
+                  lang.name,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                ),
+                trailing: isSelected
+                    ? Icon(
+                        Icons.check_circle_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
+                    : null,
+              );
+            }),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getColorName(Color color) {
+    if (color == const Color(0xFF137FEC)) return 'Sky Blue';
+    if (color == const Color(0xFF8B5CF6)) return 'Stellar Purple';
+    if (color == const Color(0xFFEC4899)) return 'Electric Pink';
+    if (color == const Color(0xFFF43F5E)) return 'Rose Red';
+    if (color == const Color(0xFFF59E0B)) return 'Amber Glow';
+    if (color == const Color(0xFF10B981)) return 'Emerald Green';
+    if (color == const Color(0xFF06B6D4)) return 'Cyan Wave';
+    return 'Custom';
   }
 
   Widget _buildSwitchTile(

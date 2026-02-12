@@ -100,11 +100,12 @@ class LibraryScreen extends StatelessWidget {
           _buildLibraryItem(
             context,
             'About Developer',
-            'Principal Engineering Team',
+            'Abir Hasan Siam',
             Icons.terminal_rounded,
             Colors.blueGrey,
             () => Navigator.pushNamed(context, '/developer'),
           ),
+          const SizedBox(height: 120),
         ],
       ),
     );

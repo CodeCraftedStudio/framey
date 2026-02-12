@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF137FEC);
   static const Color surfaceDark = Color(0xFF0F1115);
   static const Color backgroundDark = Color(0xFF07080A);
   static const Color cardColorDark = Color(0xFF181A20);
   static const Color errorColor = Color(0xFFFE4A49);
 
-  static ThemeData darkTheme = ThemeData(
+  static ThemeData getDarkTheme(Color primaryColor) => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: ColorScheme.fromSeed(
@@ -42,7 +41,7 @@ class AppTheme {
       indicatorColor: primaryColor.withOpacity(0.1),
       iconTheme: MaterialStateProperty.resolveWith((states) {
         if (states.contains(MaterialState.selected)) {
-          return const IconThemeData(color: primaryColor, size: 26);
+          return IconThemeData(color: primaryColor, size: 26);
         }
         return IconThemeData(color: Colors.white.withOpacity(0.5), size: 24);
       }),
@@ -63,7 +62,7 @@ class AppTheme {
     ),
   );
 
-  static ThemeData lightTheme = ThemeData(
+  static ThemeData getLightTheme(Color primaryColor) => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: ColorScheme.fromSeed(

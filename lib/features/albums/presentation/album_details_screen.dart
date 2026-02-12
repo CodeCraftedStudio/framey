@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/domain/album.dart';
 import '../../../shared/domain/media_item.dart';
 import '../../../shared/data/media_store_service.dart';
+import '../../../shared/presentation/widgets/framey_image.dart';
 
 class AlbumDetailsScreen extends ConsumerStatefulWidget {
   const AlbumDetailsScreen({super.key});
@@ -234,7 +234,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
             Hero(
               tag: 'album_${album.id}',
               child: album.coverUri != null
-                  ? Image.file(File(album.coverUri!), fit: BoxFit.cover)
+                  ? FrameyImage(uri: album.coverUri!)
                   : Container(
                       color: Theme.of(
                         context,
@@ -326,18 +326,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                     fit: StackFit.expand,
                     children: [
                       item.thumbnailUri != null
-                          ? Image.file(
-                              File(item.thumbnailUri!),
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    child: const Icon(
-                                      Icons.broken_image_rounded,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                            )
+                          ? FrameyImage(uri: item.thumbnailUri!)
                           : Container(
                               color: Colors.grey.withOpacity(0.1),
                               child: const Icon(

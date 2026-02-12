@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/domain/album.dart';
 import '../../../shared/data/media_store_service.dart';
 import '../../../shared/data/permission_service.dart';
+import '../../../shared/presentation/widgets/framey_image.dart';
 
 class AlbumsScreen extends ConsumerStatefulWidget {
   const AlbumsScreen({super.key});
@@ -295,7 +295,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                         fit: StackFit.expand,
                         children: [
                           if (album.coverUri != null)
-                            Image.file(File(album.coverUri!), fit: BoxFit.cover)
+                            FrameyImage(uri: album.coverUri!)
                           else
                             Container(color: Colors.grey.withOpacity(0.05)),
                           Positioned(

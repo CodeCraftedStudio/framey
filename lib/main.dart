@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/providers/theme_provider.dart';
@@ -26,12 +27,12 @@ class FrameyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeProvider);
+    final themeSettings = ref.watch(themeProvider);
     return MaterialApp(
       title: AppConstants.appName,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
+      theme: AppTheme.getLightTheme(themeSettings.primaryColor),
+      darkTheme: AppTheme.getDarkTheme(themeSettings.primaryColor),
+      themeMode: themeSettings.themeMode,
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
@@ -78,49 +79,83 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-              width: 1,
+      extendBody: true,
+      body: Stack(
+        children: [
+          _screens[_selectedIndex],
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 24,
+            child: Container(
+              height: 72,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF1A1C1E).withOpacity(0.9)
+                    : Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(36),
+                border: Border.all(
+                  color: theme.colorScheme.onSurface.withOpacity(0.08),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(36),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNavItem(0, Icons.photo_library_rounded, 'PHOTOS'),
+                    _buildNavItem(1, Icons.search_rounded, 'SEARCH'),
+                    _buildNavItem(2, Icons.album_rounded, 'ALBUMS'),
+                    _buildNavItem(3, Icons.window_rounded, 'LIBRARY'),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-        child: NavigationBar(
-          selectedIndex: _selectedIndex,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          height: 65,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          onDestinationSelected: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.photo_library_outlined, size: 24),
-              selectedIcon: Icon(Icons.photo_library, size: 24),
-              label: 'Photos',
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isSelected = _selectedIndex == index;
+    final theme = Theme.of(context);
+    final activeColor = theme.colorScheme.primary;
+    final inactiveColor = theme.colorScheme.onSurface.withOpacity(0.4);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? activeColor : inactiveColor,
+              size: 26,
             ),
-            NavigationDestination(
-              icon: Icon(Icons.search_rounded, size: 24),
-              selectedIcon: Icon(Icons.search_rounded, size: 24),
-              label: 'Search',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.album_outlined, size: 24),
-              selectedIcon: Icon(Icons.album, size: 24),
-              label: 'Albums',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.window_rounded, size: 24),
-              selectedIcon: Icon(Icons.window_rounded, size: 24),
-              label: 'Library',
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                color: isSelected ? activeColor : inactiveColor,
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),

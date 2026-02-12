@@ -36,6 +36,8 @@ class MainActivity : FlutterFragmentActivity() {
             when (call.method) {
                 "getMediaItems" -> handleGetMediaItems(call, result)
                 "getAlbums" -> handleGetAlbums(call, result)
+                "getMediaThumbnail" -> handleGetMediaThumbnail(call, result)
+                "getMediaBytes" -> handleGetMediaBytes(call, result)
                 "deleteMediaItem" -> handleDeleteMediaItem(call, result)
                 "moveToRecycleBin" -> handleMoveToRecycleBin(call, result)
                 "restoreFromRecycleBin" -> handleRestoreFromRecycleBin(call, result)
@@ -454,6 +456,52 @@ class MainActivity : FlutterFragmentActivity() {
         } catch (e: Exception) {
             android.util.Log.e("Framey", "Native permission request failed", e)
             result.error("PERMISSION_ERROR", e.message, null)
+        }
+    }
+    private fun handleGetMediaThumbnail(call: MethodCall, result: MethodChannel.Result) {
+        val uriStr = call.argument<String>("uri") ?: return result.error("ARG_ERROR", "URI is required", null)
+        val width = call.argument<Int>("width") ?: 200
+        val height = call.argument<Int>("height") ?: 200
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val uri = Uri.parse(uriStr)
+                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    context.contentResolver.loadThumbnail(uri, android.util.Size(width, height), null)
+                } else {
+                    val id = try { ContentUris.parseId(uri) } catch (e: Exception) { -1L }
+                    if (id != -1L) {
+                        MediaStore.Images.Thumbnails.getThumbnail(context.contentResolver, id, MediaStore.Images.Thumbnails.MINI_KIND, null)
+                    } else null
+                }
+                
+                if (bitmap != null) {
+                    val stream = java.io.ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
+                    val bytes = stream.toByteArray()
+                    runOnUiThread { result.success(bytes) }
+                } else {
+                    runOnUiThread { result.error("THUMB_ERROR", "Failed to load thumbnail", null) }
+                }
+            } catch (e: Exception) {
+                runOnUiThread { result.error("THUMB_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    private fun handleGetMediaBytes(call: MethodCall, result: MethodChannel.Result) {
+        val uriStr = call.argument<String>("uri") ?: return result.error("ARG_ERROR", "URI is required", null)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val uri = Uri.parse(uriStr)
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val bytes = inputStream.readBytes()
+                    runOnUiThread { result.success(bytes) }
+                } ?: runOnUiThread { result.error("BYTES_ERROR", "Failed to open stream", null) }
+            } catch (e: Exception) {
+                runOnUiThread { result.error("BYTES_ERROR", e.message, null) }
+            }
         }
     }
 }

@@ -226,4 +226,33 @@ class MediaStoreService {
       throw MediaStoreException('Unexpected error: ${e.toString()}');
     }
   }
+
+  static Future<Uint8List?> getMediaThumbnail(
+    String uri, {
+    int width = 200,
+    int height = 200,
+  }) async {
+    try {
+      final result = await _channel.invokeMethod<Uint8List>(
+        'getMediaThumbnail',
+        {'uri': uri, 'width': width, 'height': height},
+      );
+      return result;
+    } catch (e) {
+      debugPrint('Error getting thumbnail: $e');
+      return null;
+    }
+  }
+
+  static Future<Uint8List?> getMediaBytes(String uri) async {
+    try {
+      final result = await _channel.invokeMethod<Uint8List>('getMediaBytes', {
+        'uri': uri,
+      });
+      return result;
+    } catch (e) {
+      debugPrint('Error getting media bytes: $e');
+      return null;
+    }
+  }
 }

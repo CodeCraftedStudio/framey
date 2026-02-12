@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:crop_your_image/crop_your_image.dart';
+import 'package:flutter/services.dart';
 import '../../../shared/domain/media_item.dart';
+import '../../../shared/data/media_store_service.dart';
 
 class ImageEditorScreen extends StatefulWidget {
   final MediaItem mediaItem;
@@ -21,7 +24,33 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   double _brightness = 1.0;
   double _contrast = 1.0;
   double _saturation = 1.0;
-  String _activeTool = 'Adjust'; // Default to Adjust for better UX
+  String _activeTool = 'Adjust';
+  final _cropController = CropController();
+  Uint8List? _imageBytes;
+  bool _isCropping = false;
+  bool _isLoadingBytes = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImageBytes();
+  }
+
+  Future<void> _loadImageBytes() async {
+    try {
+      final bytes = await MediaStoreService.getMediaBytes(widget.mediaItem.uri);
+      if (mounted) {
+        setState(() {
+          _imageBytes = bytes;
+          _isLoadingBytes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingBytes = false);
+      }
+    }
+  }
 
   final List<Map<String, dynamic>> _filters = [
     {'name': 'Original', 'matrix': null},
@@ -220,6 +249,33 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   }
 
   Widget _buildImagePreview() {
+    if (_isLoadingBytes) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_isCropping && _imageBytes != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Crop(
+            image: _imageBytes!,
+            controller: _cropController,
+            onCropped: (result) {
+              if (result is CropSuccess) {
+                setState(() {
+                  _imageBytes = result.croppedImage;
+                  _isCropping = false;
+                });
+              }
+            },
+            aspectRatio: null,
+            initialRectBuilder: InitialRectBuilder.withSizeAndRatio(size: 0.8),
+            baseColor: Colors.black,
+            maskColor: Colors.black.withOpacity(0.5),
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -233,10 +289,18 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                 colorFilter: ColorFilter.matrix(_getMatrix()),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.file(
-                    File(widget.mediaItem.uri),
-                    fit: BoxFit.contain,
-                  ),
+                  child: _imageBytes != null
+                      ? Image.memory(_imageBytes!, fit: BoxFit.contain)
+                      : Image.file(
+                          File(widget.mediaItem.uri),
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.broken_image,
+                                color: Colors.white,
+                                size: 64,
+                              ),
+                        ),
                 ),
               ),
             ),
@@ -438,13 +502,28 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          _buildActionButton(
+            Icons.crop_rounded,
+            _isCropping ? 'Apply' : 'Crop',
+            () {
+              if (_isCropping) {
+                _cropController.crop();
+              } else {
+                setState(() => _isCropping = true);
+              }
+            },
+          ),
+          const SizedBox(width: 16),
           _buildActionButton(Icons.rotate_left_rounded, '90°', () {
             setState(() => _rotation -= 1.5708);
           }),
           const SizedBox(width: 16),
-          _buildActionButton(Icons.flip_rounded, 'Mirror', () {}),
-          const SizedBox(width: 16),
-          _buildActionButton(Icons.aspect_ratio_rounded, 'Aspect', () {}),
+          _buildActionButton(Icons.aspect_ratio_rounded, 'Reset', () {
+            setState(() {
+              _isCropping = false;
+              _rotation = 0;
+            });
+          }),
         ],
       );
     }

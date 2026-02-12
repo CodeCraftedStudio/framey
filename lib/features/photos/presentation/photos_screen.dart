@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +6,7 @@ import '../../../shared/domain/media_item.dart';
 import '../../../shared/data/media_store_service.dart';
 import '../../../shared/data/permission_service.dart';
 import '../../../core/utils/performance_utils.dart';
+import '../../../shared/presentation/widgets/framey_image.dart';
 
 class PhotosScreen extends ConsumerStatefulWidget {
   const PhotosScreen({super.key});
@@ -157,6 +157,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
               ],
             );
           }).toList(),
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
           if (_isLoading)
             const SliverToBoxAdapter(
               child: Padding(
@@ -368,7 +369,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
                     fit: StackFit.expand,
                     children: [
                       _buildThumbnail(item),
-                      if (item.type == 'video')
+                      if (item.type == MediaType.video)
                         Positioned(
                           top: 8,
                           right: 8,
@@ -398,12 +399,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
 
   Widget _buildThumbnail(MediaItem item) {
     if (item.thumbnailUri != null) {
-      return Image.file(
-        File(item.thumbnailUri!),
-        fit: BoxFit.cover,
-        errorBuilder: (c, e, s) =>
-            Container(color: Colors.grey.withOpacity(0.1)),
-      );
+      return FrameyImage(uri: item.thumbnailUri!);
     }
     return Container(
       color: Colors.grey.withOpacity(0.1),
