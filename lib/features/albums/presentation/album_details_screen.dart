@@ -138,11 +138,8 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
         delegate: SliverChildBuilderDelegate((context, index) {
           final item = _mediaItems[index];
           return GestureDetector(
-            onTap: () => Navigator.pushNamed(
-              context,
-              '/viewer',
-              arguments: item.id.toString(),
-            ),
+            onTap: () =>
+                Navigator.pushNamed(context, '/viewer', arguments: item.id),
             child: Hero(
               tag: 'media_${item.id}',
               child: ClipRRect(
