@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../shared/domain/media_item.dart';
 
 class ImageEditorScreen extends StatefulWidget {
@@ -12,6 +15,8 @@ class ImageEditorScreen extends StatefulWidget {
 }
 
 class _ImageEditorScreenState extends State<ImageEditorScreen> {
+  final GlobalKey _repaintKey = GlobalKey();
+  bool _isSaving = false;
   double _rotation = 0;
   double _brightness = 1.0;
   double _contrast = 1.0;
@@ -22,106 +27,127 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     {'name': 'Original', 'matrix': null},
     {
       'name': 'Vivid',
-      'matrix': [
+      'matrix': <double>[
         1.2,
-        0,
-        0,
-        0,
-        0,
-        0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
         1.2,
-        0,
-        0,
-        0,
-        0,
-        0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
         1.2,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
       ],
     },
     {
       'name': 'Mono',
-      'matrix': [
+      'matrix': <double>[
         0.33,
         0.59,
         0.11,
-        0,
-        0,
+        0.0,
+        0.0,
         0.33,
         0.59,
         0.11,
-        0,
-        0,
+        0.0,
+        0.0,
         0.33,
         0.59,
         0.11,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
       ],
     },
     {
       'name': 'Cool',
-      'matrix': [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0, 1, 0],
+      'matrix': <double>[
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.2,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+      ],
     },
     {
       'name': 'Warm',
-      'matrix': [
+      'matrix': <double>[
         1.2,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
         0.8,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
       ],
     },
     {
       'name': 'Sepia',
-      'matrix': [
+      'matrix': <double>[
         0.393,
         0.769,
         0.189,
-        0,
-        0,
+        0.0,
+        0.0,
         0.349,
         0.686,
         0.168,
-        0,
-        0,
+        0.0,
+        0.0,
         0.272,
         0.534,
         0.131,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
       ],
     },
   ];
@@ -163,13 +189,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              // TODO: Implement actual save logic
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Changes saved (demo)')),
-              );
-            },
+            onPressed: _isSaving ? null : _saveImage,
             style: TextButton.styleFrom(
               backgroundColor: Colors.white.withOpacity(0.1),
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -177,13 +197,22 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -196,15 +225,18 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         padding: const EdgeInsets.all(16),
         child: Hero(
           tag: 'media_${widget.mediaItem.id}',
-          child: Transform.rotate(
-            angle: _rotation,
-            child: ColorFiltered(
-              colorFilter: ColorFilter.matrix(_getMatrix()),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.file(
-                  File(widget.mediaItem.uri),
-                  fit: BoxFit.contain,
+          child: RepaintBoundary(
+            key: _repaintKey,
+            child: Transform.rotate(
+              angle: _rotation,
+              child: ColorFiltered(
+                colorFilter: ColorFilter.matrix(_getMatrix()),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.file(
+                    File(widget.mediaItem.uri),
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
             ),
@@ -212,6 +244,43 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveImage() async {
+    setState(() => _isSaving = true);
+    try {
+      final boundary =
+          _repaintKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+
+      final buffer = byteData.buffer.asUint8List();
+
+      final directory = await getTemporaryDirectory();
+      final fileName = 'edited_${DateTime.now().millisecondsSinceEpoch}.png';
+      final filePath = '${directory.path}/$fileName';
+      final file = File(filePath);
+      await file.writeAsBytes(buffer);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Image saved to $filePath')));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving image: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   List<double> _getMatrix() {
@@ -341,7 +410,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                           fit: BoxFit.cover,
                           colorFilter: filter['matrix'] != null
                               ? ColorFilter.matrix(
-                                  filter['matrix'] as List<double>,
+                                  filter['matrix'] as List<double>? ?? [],
                                 )
                               : null,
                         ),

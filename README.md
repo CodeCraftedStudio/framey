@@ -1,4 +1,5 @@
-# Framey - Premium Android Gallery App
+# Framey - Premium Android Gallery App Changelog
+
 
 A production-ready Flutter gallery app with native Android integration, featuring Google Photos-like UI and performance.
 

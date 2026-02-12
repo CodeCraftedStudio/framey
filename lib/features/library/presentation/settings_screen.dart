@@ -8,71 +8,107 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeProvider);
-    final isDark =
-        themeMode == ThemeMode.dark ||
-        (themeMode == ThemeMode.system &&
-            MediaQuery.of(context).platformBrightness == Brightness.dark);
+    ref.watch(themeProvider); // Keep watch for rebuilds
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Settings',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+            letterSpacing: -0.5,
+          ),
         ),
+        centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        physics: const BouncingScrollPhysics(),
         children: [
-          _buildSectionHeader('Appearance', context),
+          _buildSectionHeader('Appearance', theme),
           _buildSwitchTile(
             'Dark Mode',
             'Use dark theme across the app',
+            Icons.dark_mode_rounded,
             isDark,
             (v) => ref.read(themeProvider.notifier).toggleTheme(v),
-            context,
+            theme,
           ),
           _buildListTile(
             'Theme Color',
             'Deep Purple (Default)',
-            Icons.palette_outlined,
-            context,
+            Icons.palette_rounded,
+            theme,
           ),
+
           const SizedBox(height: 32),
-          _buildSectionHeader('Storage & Data', context),
+          _buildSectionHeader('General', theme),
+          _buildListTile(
+            'Language',
+            'English (United States)',
+            Icons.language_rounded,
+            theme,
+          ),
+          _buildListTile(
+            'Date Format',
+            'DD/MM/YYYY',
+            Icons.calendar_today_rounded,
+            theme,
+          ),
+
+          const SizedBox(height: 32),
+          _buildSectionHeader('Storage & Data', theme),
           _buildListTile(
             'Clear Cache',
             'Free up space used by thumbnails',
             Icons.storage_rounded,
-            context,
+            theme,
           ),
           _buildSwitchTile(
             'Save Metadata',
             'Keep location and date in exported files',
+            Icons.info_outline_rounded,
             true,
             (v) {},
-            context,
+            theme,
           ),
+
           const SizedBox(height: 32),
-          _buildSectionHeader('Security', context),
+          _buildSectionHeader('Security', theme),
           _buildListTile(
             'App Lock',
             'Biometric / PIN',
-            Icons.lock_outline_rounded,
-            context,
+            Icons.lock_rounded,
+            theme,
           ),
           _buildListTile(
             'Hidden Vault',
             'Managed hidden items',
-            Icons.visibility_off_outlined,
-            context,
+            Icons.visibility_off_rounded,
+            theme,
+          ),
+
+          const SizedBox(height: 48),
+          Center(
+            child: Text(
+              'Framey v1.0.0',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface.withOpacity(0.3),
+              ),
+            ),
           ),
           const SizedBox(height: 100),
         ],
@@ -80,15 +116,16 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title, BuildContext context) {
+  Widget _buildSectionHeader(String title, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16, left: 4),
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
       child: Text(
-        title,
+        title.toUpperCase(),
         style: GoogleFonts.plusJakartaSans(
-          fontSize: 16,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
-          color: Theme.of(context).colorScheme.primary,
+          color: theme.colorScheme.primary,
+          letterSpacing: 1.2,
         ),
       ),
     );
@@ -98,52 +135,55 @@ class SettingsScreen extends ConsumerWidget {
     String title,
     String subtitle,
     IconData icon,
-    BuildContext context,
+    ThemeData theme,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: isDark
-            ? Border.all(color: Colors.white.withOpacity(0.05))
-            : null,
-        boxShadow: isDark
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            shape: BoxShape.circle,
+            color: theme.colorScheme.primaryContainer.withOpacity(0.4),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: Icon(
-            icon,
-            color: Theme.of(context).colorScheme.primary,
-            size: 20,
-          ),
+          child: Icon(icon, color: theme.colorScheme.primary, size: 22),
         ),
         title: Text(
           title,
           style: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(fontSize: 11, color: Colors.grey.withOpacity(0.8)),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          size: 20,
+          color: theme.colorScheme.onSurface.withOpacity(0.3),
+        ),
         onTap: () {},
       ),
     );
@@ -152,45 +192,58 @@ class SettingsScreen extends ConsumerWidget {
   Widget _buildSwitchTile(
     String title,
     String subtitle,
+    IconData icon,
     bool value,
     ValueChanged<bool> onChanged,
-    BuildContext context,
+    ThemeData theme,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: isDark
-            ? Border.all(color: Colors.white.withOpacity(0.05))
-            : null,
-        boxShadow: isDark
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: SwitchListTile(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer.withOpacity(0.4),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, color: theme.colorScheme.primary, size: 22),
+        ),
         title: Text(
           title,
           style: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(fontSize: 11, color: Colors.grey.withOpacity(0.8)),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        value: value,
-        onChanged: onChanged,
-        activeColor: Theme.of(context).colorScheme.primary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        trailing: Switch.adaptive(
+          value: value,
+          onChanged: onChanged,
+          activeColor: theme.colorScheme.primary,
+        ),
       ),
     );
   }
