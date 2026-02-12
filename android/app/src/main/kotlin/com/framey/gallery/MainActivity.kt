@@ -1,7 +1,11 @@
 package com.framey.gallery
 
 import android.content.Context
+import android.content.ContentUris
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
+import android.provider.MediaStore
 import androidx.annotation.NonNull
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -467,11 +471,11 @@ class MainActivity : FlutterFragmentActivity() {
             try {
                 val uri = Uri.parse(uriStr)
                 val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    context.contentResolver.loadThumbnail(uri, android.util.Size(width, height), null)
+                    contentResolver.loadThumbnail(uri, android.util.Size(width, height), null)
                 } else {
                     val id = try { ContentUris.parseId(uri) } catch (e: Exception) { -1L }
                     if (id != -1L) {
-                        MediaStore.Images.Thumbnails.getThumbnail(context.contentResolver, id, MediaStore.Images.Thumbnails.MINI_KIND, null)
+                        MediaStore.Images.Thumbnails.getThumbnail(contentResolver, id, MediaStore.Images.Thumbnails.MINI_KIND, null)
                     } else null
                 }
                 
@@ -495,7 +499,7 @@ class MainActivity : FlutterFragmentActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val uri = Uri.parse(uriStr)
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                contentResolver.openInputStream(uri)?.use { inputStream ->
                     val bytes = inputStream.readBytes()
                     runOnUiThread { result.success(bytes) }
                 } ?: runOnUiThread { result.error("BYTES_ERROR", "Failed to open stream", null) }
