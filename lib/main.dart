@@ -9,6 +9,10 @@ import 'features/videos/presentation/video_screen.dart';
 import 'features/recycle_bin/presentation/recycle_bin_screen.dart';
 import 'features/hidden/presentation/hidden_screen.dart';
 import 'features/viewer/presentation/media_viewer_screen.dart';
+import 'features/search/presentation/search_screen.dart';
+import 'features/library/presentation/library_screen.dart';
+import 'features/library/presentation/settings_screen.dart';
+import 'features/library/presentation/about_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: FrameyApp()));
@@ -33,8 +37,13 @@ class FrameyApp extends ConsumerWidget {
           return MediaViewerScreen(mediaId: mediaId);
         },
         '/album_details': (context) {
-          return AlbumDetailsScreen();
+          return const AlbumDetailsScreen();
         },
+        '/videos': (context) => const VideoScreen(),
+        '/recycle_bin': (context) => const RecycleBinScreen(),
+        '/hidden': (context) => const HiddenScreen(),
+        '/settings': (context) => const SettingsScreen(),
+        '/about': (context) => const AboutScreen(),
       },
     );
   }
@@ -47,100 +56,65 @@ class MainScreen extends ConsumerStatefulWidget {
   ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends ConsumerState<MainScreen>
-    with TickerProviderStateMixin {
-  late final TabController _tabController;
+class _MainScreenState extends ConsumerState<MainScreen> {
+  int _selectedIndex = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+  final List<Widget> _screens = const [
+    PhotosScreen(),
+    SearchScreen(),
+    AlbumsScreen(),
+    LibraryScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: TabBarView(
-        controller: _tabController,
-        children: const [PhotosScreen(), AlbumsScreen(), LibraryScreen()],
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+              width: 1,
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedIndex,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          height: 65,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          onDestinationSelected: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.photo_library_outlined, size: 24),
+              selectedIcon: Icon(Icons.photo_library, size: 24),
+              label: 'Photos',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.search_rounded, size: 24),
+              selectedIcon: Icon(Icons.search_rounded, size: 24),
+              label: 'Search',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.album_outlined, size: 24),
+              selectedIcon: Icon(Icons.album, size: 24),
+              label: 'Albums',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.window_rounded, size: 24),
+              selectedIcon: Icon(Icons.window_rounded, size: 24),
+              label: 'Library',
+            ),
+          ],
+        ),
       ),
-      bottomNavigationBar: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        tabs: const [
-          Tab(icon: Icon(Icons.photo_library_outlined), text: 'Photos'),
-          Tab(icon: Icon(Icons.album_outlined), text: 'Albums'),
-          Tab(icon: Icon(Icons.folder_outlined), text: 'Library'),
-        ],
-        labelColor: Theme.of(context).colorScheme.primary,
-        unselectedLabelColor: Theme.of(
-          context,
-        ).colorScheme.onSurface.withOpacity(0.6),
-        indicatorColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
-  }
-}
-
-class LibraryScreen extends StatelessWidget {
-  const LibraryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        ListTile(
-          leading: const Icon(Icons.video_library_outlined),
-          title: const Text('Videos'),
-          subtitle: const Text('All video files'),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const VideoScreen()),
-            );
-          },
-        ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.delete_outline),
-          title: const Text('Recycle Bin'),
-          subtitle: const Text('Recently deleted items'),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const RecycleBinScreen()),
-            );
-          },
-        ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.lock_outline),
-          title: const Text('Hidden'),
-          subtitle: const Text('Private photos and videos'),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const HiddenScreen()),
-            );
-          },
-        ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.settings_outlined),
-          title: const Text('Settings'),
-          subtitle: const Text('App preferences and security'),
-          onTap: () {
-            // TODO: Navigate to settings
-          },
-        ),
-      ],
     );
   }
 }

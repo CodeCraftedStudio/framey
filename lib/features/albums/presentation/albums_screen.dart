@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/domain/album.dart';
 import '../../../shared/data/media_store_service.dart';
 import '../../../shared/data/permission_service.dart';
@@ -11,30 +13,15 @@ class AlbumsScreen extends ConsumerStatefulWidget {
   ConsumerState<AlbumsScreen> createState() => _AlbumsScreenState();
 }
 
-class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
-    with TickerProviderStateMixin {
+class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   List<Album> _albums = [];
   bool _isLoading = false;
   bool _hasError = false;
   String? _errorMessage;
-  late final AnimationController _fadeController;
-  late final Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    );
-
-    _fadeController.forward();
     _loadAlbums();
   }
 
@@ -42,7 +29,6 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
     setState(() {
       _isLoading = true;
       _hasError = false;
-      _errorMessage = null;
     });
 
     try {
@@ -52,7 +38,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
         if (!granted) {
           setState(() {
             _hasError = true;
-            _errorMessage = 'Media permissions are required to view albums';
+            _errorMessage = 'Permission Denied';
             _isLoading = false;
           });
           return;
@@ -60,7 +46,6 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
       }
 
       final albums = await MediaStoreService.getAlbums();
-
       setState(() {
         _albums = albums;
         _isLoading = false;
@@ -74,327 +59,290 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
     }
   }
 
-  Future<void> _refresh() async {
-    await _loadAlbums();
-  }
-
-  void _onAlbumTap(Album album) {
-    Navigator.pushNamed(context, '/album_details', arguments: album);
-  }
-
-  IconData _getAlbumIcon(AlbumType type) {
-    switch (type) {
-      case AlbumType.system:
-        return Icons.folder_outlined;
-      case AlbumType.custom:
-        return Icons.create_new_folder_outlined;
-      case AlbumType.hidden:
-        return Icons.lock_outline;
-      case AlbumType.recycle_bin:
-        return Icons.delete_outline;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_hasError) {
-      return Scaffold(
-        body: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Oops!',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          _buildSliverAppBar(),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          _buildAISection(),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          _buildAlbumsHeader(),
+          if (_hasError)
+            SliverFillRemaining(
+              child: Center(
+                child: Text(
                   _errorMessage ?? 'An error occurred',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withOpacity(0.7),
-                  ),
-                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Try Again'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+              ),
+            )
+          else if (_isLoading && _albums.isEmpty)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            _buildAlbumsGrid(),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      floating: true,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      centerTitle: false,
+      title: Text(
+        'Albums',
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 28,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -1.5,
+        ),
+      ),
+      actions: [
+        IconButton(
+          onPressed: () {},
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.add_rounded, size: 20),
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildAISection() {
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Smart Collections'),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 140,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildAICard(
+                  'People',
+                  Icons.face_rounded,
+                  Colors.blue,
+                  'faces',
+                ),
+                _buildAICard(
+                  'Places',
+                  Icons.location_on_rounded,
+                  Colors.green,
+                  'places',
+                ),
+                _buildAICard(
+                  'Selfies',
+                  Icons.portrait_rounded,
+                  Colors.orange,
+                  'selfies',
+                ),
+                _buildAICard(
+                  'Nature',
+                  Icons.landscape_rounded,
+                  Colors.teal,
+                  'nature',
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAICard(String title, IconData icon, Color color, String type) {
+    return Container(
+      width: 120,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: color.withOpacity(0.1), width: 1),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(32),
+        onTap: () {},
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        title,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          letterSpacing: -0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlbumsHeader() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Your Albums',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
+              ),
+            ),
+            Text(
+              '${_albums.length} Total',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlbumsGrid() {
+    if (_albums.isEmpty) {
+      return const SliverFillRemaining(
+        child: Center(child: Text('No albums found')),
       );
     }
 
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              floating: true,
-              snap: true,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              elevation: 0,
-              title: Text(
-                'Albums',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.create_outlined),
-                  onPressed: () {
-                    // TODO: Create new album
-                  },
-                ),
-              ],
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 24,
+          childAspectRatio: 0.8,
+        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final album = _albums[index];
+          return GestureDetector(
+            onTap: () => Navigator.pushNamed(
+              context,
+              '/album_details',
+              arguments: album,
             ),
-            if (_albums.isEmpty && !_isLoading)
-              SliverFillRemaining(
-                child: Center(
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.album_outlined,
-                            size: 64,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'No albums yet',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Create albums to organize your photos',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            // TODO: Create new album
-                          },
-                          icon: const Icon(Icons.create_new_folder),
-                          label: const Text('Create Album'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 10,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.all(16),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.0,
-                  ),
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final album = _albums[index];
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Card(
-                        clipBehavior: Clip.antiAlias,
-                        elevation: 4,
-                        shadowColor: Colors.black.withOpacity(0.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: InkWell(
-                          onTap: () => _onAlbumTap(album),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Theme.of(
-                                          context,
-                                        ).colorScheme.primary.withOpacity(0.1),
-                                        Theme.of(
-                                          context,
-                                        ).colorScheme.primary.withOpacity(0.3),
-                                      ],
-                                    ),
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      if (album.coverUri != null)
-                                        Positioned.fill(
-                                          child: Image.network(
-                                            album.coverUri!,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return Center(
-                                                    child: Icon(
-                                                      _getAlbumIcon(album.type),
-                                                      size: 48,
-                                                      color: Theme.of(
-                                                        context,
-                                                      ).colorScheme.primary,
-                                                    ),
-                                                  );
-                                                },
-                                          ),
-                                        ),
-                                      if (album.coverUri == null)
-                                        Center(
-                                          child: Icon(
-                                            _getAlbumIcon(album.type),
-                                            size: 48,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                          ),
-                                        ),
-                                      if (album.type == AlbumType.hidden)
-                                        const Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: Icon(
-                                            Icons.lock,
-                                            color: Colors.white,
-                                            size: 16,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (album.coverUri != null)
+                            Image.file(File(album.coverUri!), fit: BoxFit.cover)
+                          else
+                            Container(color: Colors.grey.withOpacity(0.05)),
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.4),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${album.mediaCount}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              Expanded(
-                                flex: 1,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          album.name,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 1),
-                                      Flexible(
-                                        child: Text(
-                                          '${album.mediaCount} items',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurface
-                                                    .withOpacity(0.6),
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    );
-                  }, childCount: _albums.length),
+                    ),
+                  ),
                 ),
-              ),
-            if (_isLoading)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    album.name,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-          ],
-        ),
+              ],
+            ),
+          );
+        }, childCount: _albums.length),
       ),
     );
   }

@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/domain/media_item.dart';
 import '../../../shared/data/media_store_service.dart';
-import '../../../shared/data/permission_service.dart';
 
 class VideoScreen extends ConsumerStatefulWidget {
   const VideoScreen({super.key});
@@ -16,8 +16,6 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
   final ScrollController _scrollController = ScrollController();
   List<MediaItem> _videoItems = [];
   bool _isLoading = false;
-  bool _hasError = false;
-  String? _errorMessage;
   int _currentPage = 0;
   bool _hasMore = true;
 
@@ -46,24 +44,9 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
 
     setState(() {
       _isLoading = true;
-      _hasError = false;
-      _errorMessage = null;
     });
 
     try {
-      final hasPermission = await PermissionService.checkMediaPermissions();
-      if (!hasPermission) {
-        final granted = await PermissionService.requestMediaPermissions();
-        if (!granted) {
-          setState(() {
-            _hasError = true;
-            _errorMessage = 'Media permissions are required to view videos';
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-
       final items = await MediaStoreService.getMediaItems(
         mediaType: 'video',
         limit: 50,
@@ -82,8 +65,6 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
       });
     } catch (e) {
       setState(() {
-        _hasError = true;
-        _errorMessage = 'Failed to load videos: ${e.toString()}';
         _isLoading = false;
       });
     }
@@ -94,195 +75,168 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
     await _loadVideoItems();
   }
 
-  Future<void> _refresh() async {
-    _currentPage = 0;
-    await _loadVideoItems();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Videos'),
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
-        elevation: 0,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: CustomScrollView(
+        controller: _scrollController,
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          _buildSliverAppBar(),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          if (_videoItems.isEmpty && !_isLoading)
+            _buildEmptyState()
+          else
+            _buildVideoGrid(),
+          if (_isLoading)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
       ),
-      backgroundColor: Theme.of(context).colorScheme.background,
-      body: RefreshIndicator(onRefresh: _refresh, child: _buildContent()),
     );
   }
 
-  Widget _buildContent() {
-    if (_hasError) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage ?? 'An error occurred',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _refresh,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-            if (_errorMessage?.contains('permissions') == true)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: TextButton(
-                  onPressed: () async {
-                    await PermissionService.openAppSettings();
-                  },
-                  child: const Text('Open Settings'),
-                ),
-              ),
-          ],
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      floating: true,
+      pinned: true,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      leading: IconButton(
+        onPressed: () => Navigator.pop(context),
+        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+      ),
+      title: Text(
+        'Videos',
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -1,
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    if (_isLoading && _videoItems.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_videoItems.isEmpty) {
-      return Center(
+  Widget _buildEmptyState() {
+    return SliverFillRemaining(
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.video_library_outlined,
-              size: 64,
-              color: Colors.grey,
+            Icon(
+              Icons.video_collection_outlined,
+              size: 80,
+              color: Colors.grey.withOpacity(0.2),
             ),
             const SizedBox(height: 16),
             Text(
               'No videos found',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
-      );
-    }
-
-    return GridView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 9 / 16,
       ),
-      itemCount: _videoItems.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == _videoItems.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
+    );
+  }
 
-        final videoItem = _videoItems[index];
-        return GestureDetector(
-          onTap: () {
-            Navigator.pushNamed(
+  Widget _buildVideoGrid() {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 0.8,
+        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final item = _videoItems[index];
+          return GestureDetector(
+            onTap: () => Navigator.pushNamed(
               context,
               '/viewer',
-              arguments: videoItem.id.toString(),
-            );
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: Theme.of(context).colorScheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              arguments: item.id.toString(),
             ),
-            child: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.grey[300],
-                  ),
-                  child: videoItem.thumbnailUri != null
-                      ? Image.file(
-                          File(videoItem.thumbnailUri!),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[300],
-                              child: const Icon(
-                                Icons.video_library,
-                                color: Colors.grey,
-                              ),
-                            );
-                          },
-                        )
-                      : Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.video_library,
-                            color: Colors.grey,
+            child: Hero(
+              tag: 'media_${item.id}',
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      item.thumbnailUri != null
+                          ? Image.file(
+                              File(item.thumbnailUri!),
+                              fit: BoxFit.cover,
+                            )
+                          : Container(color: Colors.grey.withOpacity(0.1)),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.4),
+                            ],
                           ),
                         ),
-                ),
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _formatDuration(videoItem.duration ?? 0),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
                       ),
-                    ),
+                      Positioned(
+                        bottom: 12,
+                        left: 12,
+                        right: 12,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Icon(
+                              Icons.play_circle_fill_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                            if (item.duration != null)
+                              Text(
+                                _formatDuration(item.duration!),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Icon(
-                    Icons.play_circle_outline,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        }, childCount: _videoItems.length),
+      ),
     );
   }
 

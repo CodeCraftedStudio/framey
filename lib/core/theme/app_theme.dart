@@ -1,69 +1,106 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF2196F3);
-  static const Color primaryVariant = Color(0xFF1976D2);
-  static const Color secondaryColor = Color(0xFF03DAC6);
-  static const Color secondaryVariant = Color(0xFF018786);
-  static const Color surface = Color(0xFF121212);
-  static const Color background = Color(0xFF000000);
-  static const Color error = Color(0xFFCF6679);
+  static const Color primaryColor = Color(0xFF137FEC);
+  static const Color surfaceDark = Color(0xFF0F1115);
+  static const Color backgroundDark = Color(0xFF07080A);
+  static const Color cardColorDark = Color(0xFF181A20);
+  static const Color errorColor = Color(0xFFFE4A49);
 
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    colorScheme: const ColorScheme.dark(
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: primaryColor,
+      brightness: Brightness.dark,
       primary: primaryColor,
-      secondary: secondaryColor,
-      surface: surface,
-      background: background,
-      error: error,
+      surface: surfaceDark,
+      background: backgroundDark,
+      error: errorColor,
     ),
+    textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.dark().textTheme),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        letterSpacing: -0.5,
+      ),
     ),
-    scaffoldBackgroundColor: background,
+    scaffoldBackgroundColor: backgroundDark,
     cardTheme: const CardThemeData(
-      color: surface,
-      elevation: 2,
+      color: cardColorDark,
+      elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
     ),
     listTileTheme: const ListTileThemeData(
-      dense: true,
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      dense: false,
+      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+    ),
+    iconTheme: const IconThemeData(color: Colors.white, size: 24),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: surfaceDark,
+      indicatorColor: primaryColor.withOpacity(0.1),
+      iconTheme: MaterialStateProperty.resolveWith((states) {
+        if (states.contains(MaterialState.selected)) {
+          return const IconThemeData(color: primaryColor, size: 26);
+        }
+        return IconThemeData(color: Colors.white.withOpacity(0.5), size: 24);
+      }),
+      labelTextStyle: MaterialStateProperty.resolveWith((states) {
+        if (states.contains(MaterialState.selected)) {
+          return GoogleFonts.plusJakartaSans(
+            color: primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          );
+        }
+        return GoogleFonts.plusJakartaSans(
+          color: Colors.white.withOpacity(0.5),
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
+        );
+      }),
     ),
   );
 
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    colorScheme: const ColorScheme.light(
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: primaryColor,
+      brightness: Brightness.light,
       primary: primaryColor,
-      secondary: secondaryColor,
-      surface: Colors.white,
-      background: Color(0xFFF5F5F5),
-      error: Color(0xFFB00020),
+    ),
+    textTheme: GoogleFonts.plusJakartaSansTextTheme(
+      ThemeData.light().textTheme,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
-    ),
-    scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-    cardTheme: const CardThemeData(
-      color: Colors.white,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        letterSpacing: -0.5,
+        color: Colors.black,
       ),
     ),
-    listTileTheme: const ListTileThemeData(
-      dense: true,
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+    cardTheme: const CardThemeData(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        side: BorderSide(color: Color(0xFFE9ECEF), width: 1),
+      ),
     ),
   );
 }
