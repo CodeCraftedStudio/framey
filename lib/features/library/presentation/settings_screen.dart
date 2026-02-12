@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/providers/theme_provider.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+    final isDark =
+        themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            MediaQuery.of(context).platformBrightness == Brightness.dark);
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -15,6 +23,10 @@ class SettingsScreen extends StatelessWidget {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -23,13 +35,15 @@ class SettingsScreen extends StatelessWidget {
           _buildSwitchTile(
             'Dark Mode',
             'Use dark theme across the app',
-            true,
-            (v) {},
+            isDark,
+            (v) => ref.read(themeProvider.notifier).toggleTheme(v),
+            context,
           ),
           _buildListTile(
             'Theme Color',
             'Deep Purple (Default)',
             Icons.palette_outlined,
+            context,
           ),
           const SizedBox(height: 32),
           _buildSectionHeader('Storage & Data'),
@@ -37,12 +51,14 @@ class SettingsScreen extends StatelessWidget {
             'Clear Cache',
             'Free up space used by thumbnails',
             Icons.storage_rounded,
+            context,
           ),
           _buildSwitchTile(
             'Save Metadata',
             'Keep location and date in exported files',
             true,
             (v) {},
+            context,
           ),
           const SizedBox(height: 32),
           _buildSectionHeader('Security'),
@@ -50,11 +66,13 @@ class SettingsScreen extends StatelessWidget {
             'App Lock',
             'Biometric / PIN',
             Icons.lock_outline_rounded,
+            context,
           ),
           _buildListTile(
             'Hidden Vault',
             'Managed hidden items',
             Icons.visibility_off_outlined,
+            context,
           ),
           const SizedBox(height: 100),
         ],
@@ -76,17 +94,35 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildListTile(String title, String subtitle, IconData icon) {
+  Widget _buildListTile(
+    String title,
+    String subtitle,
+    IconData icon,
+    BuildContext context,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: ListTile(
-        leading: Icon(icon),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 11, color: Colors.grey),
+        ),
         trailing: const Icon(Icons.chevron_right_rounded, size: 20),
         onTap: () {},
       ),
@@ -98,18 +134,33 @@ class SettingsScreen extends StatelessWidget {
     String subtitle,
     bool value,
     ValueChanged<bool> onChanged,
+    BuildContext context,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: SwitchListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 11, color: Colors.grey),
+        ),
         value: value,
         onChanged: onChanged,
+        activeColor: Theme.of(context).colorScheme.primary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );

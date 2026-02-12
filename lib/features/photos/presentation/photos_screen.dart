@@ -97,7 +97,12 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
   }
 
   void _onMediaItemTap(MediaItem mediaItem) {
-    Navigator.pushNamed(context, '/viewer', arguments: mediaItem.id.toString());
+    final index = _mediaItems.indexOf(mediaItem);
+    Navigator.pushNamed(
+      context,
+      '/viewer',
+      arguments: {'items': _mediaItems, 'index': index >= 0 ? index : 0},
+    );
   }
 
   Map<String, List<MediaItem>> _groupMediaByDate(List<MediaItem> items) {

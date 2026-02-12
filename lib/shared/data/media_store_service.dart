@@ -16,20 +16,20 @@ class MediaStoreService {
     String? mediaType,
     int limit = AppConstants.defaultPageSize,
     int offset = 0,
+    bool includeTrashed = false,
   }) async {
     debugPrint(
       'Framey: Flutter calling getMediaItems - albumId: $albumId, mediaType: $mediaType, limit: $limit, offset: $offset',
     );
     try {
-      final result = await _channel.invokeMethod<List<dynamic>>(
-        'getMediaItems',
-        {
-          'albumId': albumId,
-          'mediaType': mediaType,
-          'limit': limit,
-          'offset': offset,
-        },
-      );
+      final result = await _channel
+          .invokeMethod<List<dynamic>>('getMediaItems', {
+            'albumId': albumId,
+            'mediaType': mediaType,
+            'limit': limit,
+            'offset': offset,
+            'includeTrashed': includeTrashed,
+          });
 
       debugPrint(
         'Framey: Flutter received result from getMediaItems: ${result?.length ?? 0} items',
@@ -149,6 +149,37 @@ class MediaStoreService {
   static Future<bool> requestPermissions() async {
     try {
       final result = await _channel.invokeMethod<bool>('requestPermissions');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      throw MediaStoreException(
+        e.message ?? 'Unknown platform error',
+        code: e.code,
+      );
+    } catch (e) {
+      throw MediaStoreException('Unexpected error: ${e.toString()}');
+    }
+  }
+
+  static Future<bool> deletePermanently(int mediaId) async {
+    try {
+      final result = await _channel.invokeMethod<bool>('deletePermanently', {
+        'mediaId': mediaId,
+      });
+
+      return result ?? false;
+    } on PlatformException catch (e) {
+      throw MediaStoreException(
+        e.message ?? 'Unknown platform error',
+        code: e.code,
+      );
+    } catch (e) {
+      throw MediaStoreException('Unexpected error: ${e.toString()}');
+    }
+  }
+
+  static Future<bool> emptyRecycleBin() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('emptyRecycleBin');
       return result ?? false;
     } on PlatformException catch (e) {
       throw MediaStoreException(

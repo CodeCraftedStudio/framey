@@ -83,19 +83,49 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
 
   Widget _buildSliverAppBar(Album album) {
     return SliverAppBar(
-      expandedHeight: 250,
+      expandedHeight: 280,
       pinned: true,
       elevation: 0,
+      scrolledUnderElevation: 0,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          album.name,
-          style: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w800,
-            fontSize: 20,
-            color: Colors.white,
-            shadows: [const Shadow(color: Colors.black45, blurRadius: 10)],
+      leading: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: CircleAvatar(
+          backgroundColor: Colors.black.withOpacity(0.3),
+          child: IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
+        ),
+      ),
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              album.name,
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+                color: Colors.white,
+                letterSpacing: -0.5,
+              ),
+            ),
+            Text(
+              '${album.mediaCount} items',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.8),
+              ),
+            ),
+          ],
         ),
         background: Stack(
           fit: StackFit.expand,
@@ -111,44 +141,100 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                  stops: const [0.0, 0.4, 1.0],
+                  colors: [
+                    Colors.black.withOpacity(0.4),
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.8),
+                  ],
                 ),
               ),
             ),
           ],
         ),
       ),
-      leading: IconButton(
-        onPressed: () => Navigator.pop(context),
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-      ),
     );
   }
 
   Widget _buildMediaGrid() {
+    if (_mediaItems.isEmpty && !_isLoading) {
+      return const SliverFillRemaining(
+        child: Center(child: Text('No media found in this album')),
+      );
+    }
+
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
           childAspectRatio: 1,
         ),
         delegate: SliverChildBuilderDelegate((context, index) {
           final item = _mediaItems[index];
           return GestureDetector(
-            onTap: () =>
-                Navigator.pushNamed(context, '/viewer', arguments: item.id),
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                '/viewer',
+                arguments: {'items': _mediaItems, 'index': index},
+              );
+            },
             child: Hero(
               tag: 'media_${item.id}',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  color: Colors.grey.withOpacity(0.1),
-                  child: item.thumbnailUri != null
-                      ? Image.file(File(item.thumbnailUri!), fit: BoxFit.cover)
-                      : const Icon(Icons.image, color: Colors.grey),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      item.thumbnailUri != null
+                          ? Image.file(
+                              File(item.thumbnailUri!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                    color: Colors.grey.withOpacity(0.1),
+                                  ),
+                            )
+                          : Container(
+                              color: Colors.grey.withOpacity(0.1),
+                              child: const Icon(
+                                Icons.image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                      if (item.type == MediaType.video)
+                        Positioned(
+                          right: 8,
+                          bottom: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),

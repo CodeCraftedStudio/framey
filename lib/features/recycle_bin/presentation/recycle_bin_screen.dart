@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/domain/media_item.dart';
+import '../../../shared/data/media_store_service.dart';
 
 class RecycleBinScreen extends ConsumerStatefulWidget {
   const RecycleBinScreen({super.key});
@@ -23,31 +24,104 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
 
   Future<void> _loadDeletedItems() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    final now = DateTime.now();
-    _deletedItems = [
-      MediaItem(
-        id: 'del1',
-        uri: '/storage/emulated/0/DCIM/Camera/IMG_1.jpg',
-        thumbnailUri: '/storage/emulated/0/DCIM/Camera/.thumbnails/IMG_1.jpg',
-        name: 'Hill_Trip.jpg',
-        type: MediaType.image,
-        size: 1024 * 1024 * 2,
-        dateAdded: now.subtract(const Duration(days: 5)),
-        dateModified: now.subtract(const Duration(days: 5)),
+    try {
+      final items = await MediaStoreService.getMediaItems(
+        includeTrashed: true,
+        limit: 100,
+      );
+      setState(() {
+        _deletedItems = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading trashed items: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _restoreItem(MediaItem item) async {
+    try {
+      final success = await MediaStoreService.restoreFromRecycleBin(
+        int.parse(item.id),
+      );
+      if (success) {
+        _loadDeletedItems();
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Item restored')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+      }
+    }
+  }
+
+  Future<void> _deletePermanently(MediaItem item) async {
+    try {
+      final success = await MediaStoreService.deletePermanently(
+        int.parse(item.id),
+      );
+      if (success) {
+        _loadDeletedItems();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Item deleted permanently')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      }
+    }
+  }
+
+  Future<void> _emptyBin() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Empty Recycle Bin?'),
+        content: const Text(
+          'This will permanently delete all items in the bin. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Empty Bin', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
-      MediaItem(
-        id: 'del2',
-        uri: '/storage/emulated/0/DCIM/Camera/IMG_2.jpg',
-        thumbnailUri: '/storage/emulated/0/DCIM/Camera/.thumbnails/IMG_2.jpg',
-        name: 'Beach_Fun.jpg',
-        type: MediaType.image,
-        size: 1024 * 1024 * 3,
-        dateAdded: now.subtract(const Duration(days: 12)),
-        dateModified: now.subtract(const Duration(days: 12)),
-      ),
-    ];
-    setState(() => _isLoading = false);
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        await MediaStoreService.emptyRecycleBin();
+        _loadDeletedItems();
+      } catch (e) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to empty bin: $e')));
+        }
+      }
+    }
   }
 
   @override
@@ -58,6 +132,10 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        ),
         title: Text(
           'Recycle Bin',
           style: GoogleFonts.plusJakartaSans(
@@ -69,7 +147,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
         actions: [
           if (_deletedItems.isNotEmpty)
             TextButton(
-              onPressed: () {},
+              onPressed: _emptyBin,
               child: const Text(
                 'Empty',
                 style: TextStyle(
@@ -119,14 +197,27 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
       itemCount: _deletedItems.length,
       itemBuilder: (context, index) {
         final item = _deletedItems[index];
-        final daysPassed = DateTime.now().difference(item.dateAdded).inDays;
-        final progress = (30 - daysPassed) / 30;
+
+        final deletedAtMillis =
+            item.metadata?['deletedAt'] as int? ??
+            DateTime.now().millisecondsSinceEpoch;
+        final deletedAt = DateTime.fromMillisecondsSinceEpoch(deletedAtMillis);
+        final daysSinceDeletion = DateTime.now().difference(deletedAt).inDays;
+        final daysLeft = 30 - daysSinceDeletion;
+        final progress = (daysLeft.clamp(0, 30)) / 30;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(12),
@@ -141,7 +232,12 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
                     ? Image.file(File(item.thumbnailUri!), fit: BoxFit.cover)
                     : Container(
                         color: Colors.grey.withOpacity(0.1),
-                        child: const Icon(Icons.image),
+                        child: Icon(
+                          item.type == MediaType.video
+                              ? Icons.play_circle_outline
+                              : Icons.image,
+                          color: Colors.grey,
+                        ),
                       ),
               ),
             ),
@@ -149,8 +245,10 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
               item.name,
               style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 14,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,17 +262,18 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
                         backgroundColor: Colors.grey.withOpacity(0.1),
                         color: progress < 0.2
                             ? Colors.redAccent
-                            : Colors.orangeAccent,
+                            : Theme.of(context).colorScheme.primary,
                         borderRadius: BorderRadius.circular(4),
                         minHeight: 4,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Text(
-                      '${30 - daysPassed}d left',
-                      style: const TextStyle(
+                      '${daysLeft}d left',
+                      style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
+                        color: progress < 0.2 ? Colors.redAccent : Colors.grey,
                       ),
                     ),
                   ],
@@ -182,13 +281,36 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
               ],
             ),
             trailing: PopupMenuButton(
-              icon: const Icon(Icons.more_vert_rounded),
+              icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               itemBuilder: (context) => [
-                const PopupMenuItem(child: Text('Restore')),
-                const PopupMenuItem(
-                  child: Text(
-                    'Delete Forever',
-                    style: TextStyle(color: Colors.redAccent),
+                PopupMenuItem(
+                  onTap: () => _restoreItem(item),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.restore_rounded, size: 20),
+                      SizedBox(width: 12),
+                      Text('Restore'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  onTap: () => _deletePermanently(item),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.delete_forever_rounded,
+                        size: 20,
+                        color: Colors.redAccent,
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Delete Forever',
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
+                    ],
                   ),
                 ),
               ],

@@ -12,6 +12,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Date
+import org.json.JSONArray
+import org.json.JSONObject
 
 enum class AlbumType {
     SYSTEM, CUSTOM, AI_FACES, AI_LOCATIONS, HIDDEN, RECYCLE_BIN
@@ -44,18 +46,43 @@ data class Album(
 
 class MediaStoreManager(private val context: Context) {
     
+    private val prefs = context.getSharedPreferences("framey_recycle_bin", Context.MODE_PRIVATE)
+    
+    private fun getTrashedItems(): Map<Long, Long> {
+        val json = prefs.getString("trashed_items", "{}") ?: "{}"
+        val obj = JSONObject(json)
+        val map = mutableMapOf<Long, Long>()
+        obj.keys().forEach { key ->
+            map[key.toLong()] = obj.getLong(key)
+        }
+        return map
+    }
+    
+    private fun saveTrashedItems(map: Map<Long, Long>) {
+        val obj = JSONObject()
+        map.forEach { (id, timestamp) ->
+            obj.put(id.toString(), timestamp)
+        }
+        prefs.edit().putString("trashed_items", obj.toString()).apply()
+    }
+
     suspend fun getMediaItems(
         albumId: String? = null,
         mediaType: String? = null,
         limit: Int = 50,
-        offset: Int = 0
+        offset: Int = 0,
+        includeTrashed: Boolean = false
     ): Result<List<MediaItem>> = withContext(Dispatchers.IO) {
         try {
             val mediaList = mutableListOf<MediaItem>()
             val selection = StringBuilder()
             val selectionArgs = mutableListOf<String>()
             
-            android.util.Log.d("Framey", "Getting media items: albumId=$albumId, mediaType=$mediaType, limit=$limit, offset=$offset")
+            val trashedIds = getTrashedItems().keys
+            
+            if (!includeTrashed && trashedIds.isNotEmpty()) {
+                selection.append("${MediaStore.MediaColumns._ID} NOT IN (${trashedIds.joinToString(",")})")
+            }
             
             if (albumId != null) {
                 if (selection.isNotEmpty()) selection.append(" AND ")
@@ -77,7 +104,6 @@ class MediaStoreManager(private val context: Context) {
                 }
             }
             
-            // Query only valid columns required by the app
             val projection = arrayOf(
                 MediaStore.MediaColumns._ID,
                 MediaStore.MediaColumns.DISPLAY_NAME,
@@ -91,10 +117,7 @@ class MediaStoreManager(private val context: Context) {
                 MediaStore.MediaColumns.DATA
             )
             
-            // Use proper Android MediaStore sort order without SQL LIMIT syntax
             val sortOrder = "${MediaStore.MediaColumns.DATE_ADDED} DESC"
-            
-            // Query MediaStore.Files for both images and videos
             val contentUri = MediaStore.Files.getContentUri("external")
             
             val query = context.contentResolver.query(
@@ -106,8 +129,6 @@ class MediaStoreManager(private val context: Context) {
             )
             
             query?.use { cursor ->
-                android.util.Log.d("Framey", "Cursor count: ${cursor.count}")
-                
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
                 val mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
@@ -119,13 +140,17 @@ class MediaStoreManager(private val context: Context) {
                 val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION)
                 val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
                 
-                // Apply offset and limit manually to avoid SQL injection
                 var currentPosition = 0
                 var itemsAdded = 0
                 
-                while (cursor.moveToNext() && itemsAdded < limit) {
-                    if (currentPosition >= offset) {
-                        val id = cursor.getLong(idColumn)
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idColumn)
+                    
+                    // If we are looking for trashed items, only include them
+                    if (includeTrashed && !trashedIds.contains(id)) continue
+                    // If we are looking for regular items, only include them (already handled by SQL selection if trashedIds not empty)
+                    
+                    if (currentPosition >= offset && itemsAdded < limit) {
                         val name = cursor.getString(nameColumn)
                         val mimeType = cursor.getString(mimeTypeColumn)
                         val size = cursor.getLong(sizeColumn)
@@ -133,23 +158,12 @@ class MediaStoreManager(private val context: Context) {
                         val dateModified = cursor.getLong(dateModifiedColumn)
                         val dataPath = cursor.getString(dataColumn)
                         
-                        // Handle nullable columns safely
                         val width = if (cursor.isNull(widthColumn)) null else cursor.getLong(widthColumn).toInt()
                         val height = if (cursor.isNull(heightColumn)) null else cursor.getLong(heightColumn).toInt()
                         val duration = if (cursor.isNull(durationColumn)) null else cursor.getLong(durationColumn).toInt()
                         
-                        // Use DATA path whenever possible for better Flutter compatibility
-                        val mediaUri = dataPath ?: Uri.withAppendedPath(
-                            MediaStore.Files.getContentUri("external"),
-                            id.toString()
-                        ).toString()
-                        
-                        val contentUriObj = Uri.withAppendedPath(
-                            MediaStore.Files.getContentUri("external"),
-                            id.toString()
-                        )
-                        
-                        val thumbnailPath = generateThumbnail(context, contentUriObj, mimeType)
+                        val mediaUri = dataPath ?: Uri.withAppendedPath(contentUri, id.toString()).toString()
+                        val thumbnailPath = generateThumbnail(context, Uri.withAppendedPath(contentUri, id.toString()), mimeType)
                         
                         val mediaItem = MediaItem(
                             id = id,
@@ -162,20 +176,17 @@ class MediaStoreManager(private val context: Context) {
                             width = width,
                             height = height,
                             duration = duration,
-                            thumbnailPath = thumbnailPath
+                            thumbnailPath = thumbnailPath,
+                            metadata = if (includeTrashed) mapOf("deletedAt" to (getTrashedItems()[id] ?: 0L)) else null
                         )
-                        
                         mediaList.add(mediaItem)
                         itemsAdded++
                     }
                     currentPosition++
                 }
             }
-            
-            android.util.Log.d("Framey", "Returning ${mediaList.size} media items")
             Result.success(mediaList)
         } catch (e: Exception) {
-            android.util.Log.e("Framey", "Error getting media items", e)
             Result.failure(e)
         }
     }
@@ -183,51 +194,48 @@ class MediaStoreManager(private val context: Context) {
     suspend fun getAlbums(): Result<List<Album>> = withContext(Dispatchers.IO) {
         try {
             val albumList = mutableListOf<Album>()
-            
-            // Get system albums
             val projection = arrayOf(
                 MediaStore.Images.Media.BUCKET_ID,
                 MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
                 MediaStore.Images.Media._ID
             )
             
+            // Exclude trashed items from album counts
+            val trashedIds = getTrashedItems().keys
+            val selection = if (trashedIds.isNotEmpty()) {
+                "${MediaStore.MediaColumns._ID} NOT IN (${trashedIds.joinToString(",")})"
+            } else null
+
             val query = context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
-                null,
+                selection,
                 null,
                 "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME}"
             )
             
-            // Group by bucket and count manually
             val bucketCounts = mutableMapOf<String, Int>()
             query?.use { cursor ->
-                val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_ID)
                 val bucketNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
-                
                 while (cursor.moveToNext()) {
                     val bucketName = cursor.getString(bucketNameColumn) ?: "Unknown"
                     bucketCounts[bucketName] = bucketCounts.getOrDefault(bucketName, 0) + 1
                 }
             }
             
-            // Create albums from grouped data
             bucketCounts.forEach { (bucketName, count) ->
-                val album = Album(
-                    id = bucketName, // Use bucket name as ID
+                albumList.add(Album(
+                    id = bucketName,
                     name = bucketName,
                     type = "system",
-                    coverUri = null, // TODO: Get cover image
+                    coverUri = null,
                     mediaCount = count,
                     lastModified = null,
                     metadata = null
-                )
-                albumList.add(album)
+                ))
             }
             
-            // Add special albums
             albumList.addAll(getSpecialAlbums())
-            
             Result.success(albumList)
         } catch (e: Exception) {
             Result.failure(e)
@@ -235,110 +243,94 @@ class MediaStoreManager(private val context: Context) {
     }
     
     private fun getSpecialAlbums(): List<Album> {
+        val trashedCount = getTrashedItems().size
         return listOf(
-            Album(
-                id = "-1",
-                name = "Favorites",
-                type = "custom",
-                coverUri = null,
-                mediaCount = 0,
-                lastModified = null,
-                metadata = null
-            ),
-            Album(
-                id = "-2",
-                name = "Hidden",
-                type = "hidden",
-                coverUri = null,
-                mediaCount = 0,
-                lastModified = null,
-                metadata = null
-            ),
-            Album(
-                id = "-3",
-                name = "Recycle Bin",
-                type = "recycle_bin",
-                coverUri = null,
-                mediaCount = 0,
-                lastModified = null,
-                metadata = null
-            ),
+            Album(id = "-1", name = "Favorites", type = "custom", coverUri = null, mediaCount = 0, lastModified = null),
+            Album(id = "-2", name = "Hidden", type = "hidden", coverUri = null, mediaCount = 0, lastModified = null),
+            Album(id = "-3", name = "Recycle Bin", type = "recycle_bin", coverUri = null, mediaCount = trashedCount, lastModified = null),
         )
     }
     
     private fun generateThumbnail(context: Context, uri: Uri, mimeType: String?): String? {
         return try {
             val thumbnailFile = File(context.cacheDir, "thumb_${uri.lastPathSegment?.hashCode()}.jpg")
+            if (thumbnailFile.exists()) return thumbnailFile.absolutePath
             
-            if (thumbnailFile.exists()) {
-                thumbnailFile.absolutePath
-            } else {
-                val bitmap = if (mimeType?.startsWith("image/") == true) {
-                    // Generate image thumbnail
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        BitmapFactory.decodeStream(input, null, BitmapFactory.Options().apply {
-                            inSampleSize = 4 // Better thumbnail quality
-                        })
-                    }
-                } else if (mimeType?.startsWith("video/") == true) {
-                    // Generate video thumbnail
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        try {
-                            // Android Q+ thumbnail extraction
-                            val size = android.util.Size(512, 512)
-                            context.contentResolver.loadThumbnail(uri, size, null)
-                        } catch (e: Exception) {
-                            android.util.Log.w("Framey", "Failed to load video thumbnail", e)
-                            null
-                        }
-                    } else {
-                        // Fallback for older Android versions
-                        try {
-                            val retriever = android.media.MediaMetadataRetriever()
-                            retriever.setDataSource(context, uri)
-                            retriever.frameAtTime
-                        } catch (e: Exception) {
-                            android.util.Log.w("Framey", "Failed to extract video frame", e)
-                            null
-                        }
-                    }
+            val bitmap = if (mimeType?.startsWith("image/") == true) {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input, null, BitmapFactory.Options().apply { inSampleSize = 4 })
+                }
+            } else if (mimeType?.startsWith("video/") == true) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    try { context.contentResolver.loadThumbnail(uri, android.util.Size(512, 512), null) }
+                    catch (e: Exception) { null }
                 } else {
-                    null
+                    try {
+                        val retriever = android.media.MediaMetadataRetriever()
+                        retriever.setDataSource(context, uri)
+                        retriever.frameAtTime
+                    } catch (e: Exception) { null }
                 }
-                
-                bitmap?.let { bmp ->
-                    FileOutputStream(thumbnailFile).use { out ->
-                        bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
-                    }
-                    thumbnailFile.absolutePath
-                } ?: run {
-                    android.util.Log.w("Framey", "Failed to generate thumbnail for $uri")
-                    null
-                }
+            } else null
+            
+            bitmap?.let { bmp ->
+                FileOutputStream(thumbnailFile).use { out -> bmp.compress(Bitmap.CompressFormat.JPEG, 85, out) }
+                thumbnailFile.absolutePath
             }
-        } catch (e: Exception) {
-            android.util.Log.e("Framey", "Error generating thumbnail", e)
-            null
-        }
+        } catch (e: Exception) { null }
     }
     
-    suspend fun deleteMediaItem(mediaId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun moveToRecycleBin(mediaId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mediaId.toString())
-            val deleted = context.contentResolver.delete(uri, null, null) > 0
-            Result.success(deleted)
+            val trashed = getTrashedItems().toMutableMap()
+            trashed[mediaId] = System.currentTimeMillis()
+            saveTrashedItems(trashed)
+            Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
     
-    suspend fun moveToRecycleBin(mediaId: Long): Result<Boolean> {
-        // TODO: Implement soft delete logic
-        return deleteMediaItem(mediaId)
+    suspend fun restoreFromRecycleBin(mediaId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val trashed = getTrashedItems().toMutableMap()
+            trashed.remove(mediaId)
+            saveTrashedItems(trashed)
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
-    
-    suspend fun restoreFromRecycleBin(mediaId: Long): Result<Boolean> {
-        // TODO: Implement restore logic
-        return Result.success(true)
+
+    suspend fun deletePermanently(mediaId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val uri = Uri.withAppendedPath(MediaStore.Files.getContentUri("external"), mediaId.toString())
+            val deleted = context.contentResolver.delete(uri, null, null) > 0
+            if (deleted) {
+                val trashed = getTrashedItems().toMutableMap()
+                trashed.remove(mediaId)
+                saveTrashedItems(trashed)
+            }
+            Result.success(deleted)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun emptyRecycleBin(): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val trashed = getTrashedItems()
+            var allDeleted = true
+            trashed.keys.forEach { id ->
+                val uri = Uri.withAppendedPath(MediaStore.Files.getContentUri("external"), id.toString())
+                if (context.contentResolver.delete(uri, null, null) <= 0) {
+                    allDeleted = false
+                }
+            }
+            saveTrashedItems(emptyMap())
+            Result.success(allDeleted)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

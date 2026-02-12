@@ -41,6 +41,8 @@ class MainActivity : FlutterActivity() {
                 "restoreFromRecycleBin" -> handleRestoreFromRecycleBin(call, result)
                 "checkPermissions" -> handleCheckPermissions(call, result)
                 "requestPermissions" -> handleRequestPermissions(call, result)
+                "deletePermanently" -> handleDeletePermanently(call, result)
+                "emptyRecycleBin" -> handleEmptyRecycleBin(call, result)
                 else -> result.notImplemented()
             }
         }
@@ -151,10 +153,11 @@ class MainActivity : FlutterActivity() {
         val mediaType = call.argument<String?>("mediaType")
         val limit = call.argument<Int>("limit") ?: 50
         val offset = call.argument<Int>("offset") ?: 0
+        val includeTrashed = call.argument<Boolean>("includeTrashed") ?: false
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val mediaResult = mediaStoreManager.getMediaItems(albumId, mediaType, limit, offset)
+                val mediaResult = mediaStoreManager.getMediaItems(albumId, mediaType, limit, offset, includeTrashed)
                 mediaResult.fold(
                     onSuccess = { mediaItems ->
                         val jsonList = mediaItems.map { mediaItem ->
@@ -282,6 +285,48 @@ class MainActivity : FlutterActivity() {
                     },
                     onFailure = { exception ->
                         runOnUiThread { result.error("RESTORE_ERROR", exception.message, null) }
+                    }
+                )
+            } catch (e: Exception) {
+                runOnUiThread { result.error("UNKNOWN_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    private fun handleDeletePermanently(call: MethodCall, result: MethodChannel.Result) {
+        val mediaId = call.argument<Long>("mediaId")
+        if (mediaId == null) {
+            result.error("INVALID_ARGUMENT", "mediaId is required", null)
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val deleteResult = mediaStoreManager.deletePermanently(mediaId)
+                deleteResult.fold(
+                    onSuccess = { success ->
+                        runOnUiThread { result.success(success) }
+                    },
+                    onFailure = { exception ->
+                        runOnUiThread { result.error("DELETE_ERROR", exception.message, null) }
+                    }
+                )
+            } catch (e: Exception) {
+                runOnUiThread { result.error("UNKNOWN_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    private fun handleEmptyRecycleBin(call: MethodCall, result: MethodChannel.Result) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val emptyResult = mediaStoreManager.emptyRecycleBin()
+                emptyResult.fold(
+                    onSuccess = { success ->
+                        runOnUiThread { result.success(success) }
+                    },
+                    onFailure = { exception ->
+                        runOnUiThread { result.error("EMPTY_ERROR", exception.message, null) }
                     }
                 )
             } catch (e: Exception) {

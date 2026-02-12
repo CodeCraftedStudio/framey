@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
+import 'core/providers/theme_provider.dart';
 import 'features/photos/presentation/photos_screen.dart';
 import 'features/albums/presentation/albums_screen.dart';
 import 'features/albums/presentation/album_details_screen.dart';
@@ -14,6 +15,7 @@ import 'features/library/presentation/library_screen.dart';
 import 'features/library/presentation/settings_screen.dart';
 import 'features/library/presentation/about_screen.dart';
 import 'features/library/presentation/developer_screen.dart';
+import 'shared/domain/media_item.dart';
 
 void main() {
   runApp(const ProviderScope(child: FrameyApp()));
@@ -24,18 +26,24 @@ class FrameyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
     return MaterialApp(
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
         '/': (context) => const MainScreen(),
         '/viewer': (context) {
-          final mediaId = ModalRoute.of(context)?.settings.arguments as String?;
-          return MediaViewerScreen(mediaId: mediaId);
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
+          return MediaViewerScreen(
+            initialItems: args?['items'] as List<MediaItem>?,
+            initialIndex: args?['index'] as int? ?? 0,
+          );
         },
         '/album_details': (context) {
           return const AlbumDetailsScreen();
