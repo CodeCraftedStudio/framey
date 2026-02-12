@@ -13,6 +13,7 @@ import 'features/search/presentation/search_screen.dart';
 import 'features/library/presentation/library_screen.dart';
 import 'features/library/presentation/settings_screen.dart';
 import 'features/library/presentation/about_screen.dart';
+import 'features/library/presentation/developer_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: FrameyApp()));
@@ -44,6 +45,7 @@ class FrameyApp extends ConsumerWidget {
         '/hidden': (context) => const HiddenScreen(),
         '/settings': (context) => const SettingsScreen(),
         '/about': (context) => const AboutScreen(),
+        '/developer': (context) => const DeveloperScreen(),
       },
     );
   }

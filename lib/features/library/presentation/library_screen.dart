@@ -96,6 +96,15 @@ class LibraryScreen extends StatelessWidget {
               MaterialPageRoute(builder: (c) => const AboutScreen()),
             ),
           ),
+          const SizedBox(height: 12),
+          _buildLibraryItem(
+            context,
+            'About Developer',
+            'Principal Engineering Team',
+            Icons.terminal_rounded,
+            Colors.blueGrey,
+            () => Navigator.pushNamed(context, '/developer'),
+          ),
         ],
       ),
     );

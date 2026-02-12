@@ -32,13 +32,6 @@ class AppTheme {
       ),
     ),
     scaffoldBackgroundColor: backgroundDark,
-    cardTheme: const CardThemeData(
-      color: cardColorDark,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-      ),
-    ),
     listTileTheme: const ListTileThemeData(
       dense: false,
       contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -77,30 +70,44 @@ class AppTheme {
       seedColor: primaryColor,
       brightness: Brightness.light,
       primary: primaryColor,
+      surface: Colors.white,
+      background: const Color(0xFFF8FAFC),
+      onBackground: const Color(0xFF0F172A),
     ),
     textTheme: GoogleFonts.plusJakartaSansTextTheme(
       ThemeData.light().textTheme,
     ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.white,
+    appBarTheme: AppBarTheme(
+      backgroundColor: const Color(0xFFF8FAFC).withOpacity(0.8),
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: true,
-      titleTextStyle: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        letterSpacing: -0.5,
-        color: Colors.black,
+      centerTitle: false,
+      titleTextStyle: GoogleFonts.plusJakartaSans(
+        fontSize: 24,
+        fontWeight: FontWeight.w800,
+        color: const Color(0xFF0F172A),
+        letterSpacing: -1,
       ),
+      iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
     ),
-    scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-    cardTheme: const CardThemeData(
-      color: Colors.white,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-        side: BorderSide(color: Color(0xFFE9ECEF), width: 1),
-      ),
+    scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: Colors.white,
+      indicatorColor: primaryColor.withOpacity(0.1),
+      labelTextStyle: MaterialStateProperty.resolveWith((states) {
+        if (states.contains(MaterialState.selected)) {
+          return GoogleFonts.plusJakartaSans(
+            color: primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          );
+        }
+        return GoogleFonts.plusJakartaSans(
+          color: const Color(0xFF64748B),
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
+        );
+      }),
     ),
   );
 }

@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/domain/media_item.dart';
 import '../../../shared/data/media_store_service.dart';
+import '../../editor/presentation/image_editor_screen.dart';
 
 class MediaViewerScreen extends ConsumerStatefulWidget {
   final String? mediaId;
@@ -106,8 +107,15 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
       );
     }
 
+    final isFileExists = File(_mediaItem!.uri).existsSync();
+    final imageProvider = isFileExists
+        ? FileImage(File(_mediaItem!.uri))
+        : (_mediaItem!.thumbnailUri != null
+              ? FileImage(File(_mediaItem!.thumbnailUri!)) as ImageProvider
+              : const AssetImage('assets/images/placeholder.png'));
+
     return PhotoView(
-      imageProvider: FileImage(File(_mediaItem!.uri)),
+      imageProvider: imageProvider,
       heroAttributes: PhotoViewHeroAttributes(tag: 'media_${_mediaItem!.id}'),
       minScale: PhotoViewComputedScale.contained,
       maxScale: PhotoViewComputedScale.covered * 4,
@@ -145,18 +153,13 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                 ),
               ),
               const Spacer(),
-              if (_mediaItem != null)
-                Text(
-                  DateFormat(
-                    'MMM d, yyyy h:mm a',
-                  ).format(_mediaItem!.dateAdded),
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+              IconButton(
+                onPressed: _showMediaDetails,
+                icon: const Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.white,
                 ),
-              const Spacer(),
+              ),
               IconButton(
                 onPressed: () {},
                 icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
@@ -164,6 +167,120 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showMediaDetails() {
+    if (_mediaItem == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Details',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildDetailRow(
+              Icons.calendar_month_rounded,
+              'Date',
+              DateFormat('EEEE, MMM d, yyyy').format(_mediaItem!.dateAdded),
+            ),
+            _buildDetailRow(
+              Icons.access_time_rounded,
+              'Time',
+              DateFormat('h:mm a').format(_mediaItem!.dateAdded),
+            ),
+            _buildDetailRow(
+              Icons.description_rounded,
+              'Filename',
+              _mediaItem!.name,
+            ),
+            _buildDetailRow(
+              Icons.data_usage_rounded,
+              'Size',
+              '${(_mediaItem!.size / 1024 / 1024).toStringAsFixed(2)} MB',
+            ),
+            if (_mediaItem!.width != null && _mediaItem!.height != null)
+              _buildDetailRow(
+                Icons.photo_size_select_large_rounded,
+                'Resolution',
+                '${_mediaItem!.width} x ${_mediaItem!.height}',
+              ),
+            _buildDetailRow(Icons.folder_open_rounded, 'Path', _mediaItem!.uri),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, size: 20, color: Colors.blue),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -189,7 +306,21 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
             children: [
               _buildBarItem(Icons.share_rounded, 'Share'),
               _buildBarItem(Icons.favorite_border_rounded, 'Favorite'),
-              _buildBarItem(Icons.edit_rounded, 'Edit'),
+              _buildBarItem(
+                Icons.edit_rounded,
+                'Edit',
+                onTap: () {
+                  if (_mediaItem != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (c) =>
+                            ImageEditorScreen(mediaItem: _mediaItem!),
+                      ),
+                    );
+                  }
+                },
+              ),
               _buildBarItem(
                 Icons.delete_outline_rounded,
                 'Delete',
@@ -206,21 +337,26 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
     IconData icon,
     String label, {
     Color color = Colors.white,
+    VoidCallback? onTap,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(
-            color: color.withOpacity(0.8),
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              color: color.withOpacity(0.8),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

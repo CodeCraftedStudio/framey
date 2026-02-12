@@ -87,18 +87,15 @@ class MediaStoreManager(private val context: Context) {
                 MediaStore.MediaColumns.DATE_MODIFIED,
                 MediaStore.MediaColumns.WIDTH,
                 MediaStore.MediaColumns.HEIGHT,
-                MediaStore.MediaColumns.DURATION
+                MediaStore.MediaColumns.DURATION,
+                MediaStore.MediaColumns.DATA
             )
             
             // Use proper Android MediaStore sort order without SQL LIMIT syntax
             val sortOrder = "${MediaStore.MediaColumns.DATE_ADDED} DESC"
             
             // Query MediaStore.Files for both images and videos
-            val contentUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                MediaStore.Files.getContentUri("external")
-            } else {
-                MediaStore.Files.getContentUri("external")
-            }
+            val contentUri = MediaStore.Files.getContentUri("external")
             
             val query = context.contentResolver.query(
                 contentUri,
@@ -120,6 +117,7 @@ class MediaStoreManager(private val context: Context) {
                 val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.WIDTH)
                 val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.HEIGHT)
                 val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION)
+                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
                 
                 // Apply offset and limit manually to avoid SQL injection
                 var currentPosition = 0
@@ -133,25 +131,31 @@ class MediaStoreManager(private val context: Context) {
                         val size = cursor.getLong(sizeColumn)
                         val dateAdded = cursor.getLong(dateAddedColumn)
                         val dateModified = cursor.getLong(dateModifiedColumn)
+                        val dataPath = cursor.getString(dataColumn)
                         
                         // Handle nullable columns safely
                         val width = if (cursor.isNull(widthColumn)) null else cursor.getLong(widthColumn).toInt()
                         val height = if (cursor.isNull(heightColumn)) null else cursor.getLong(heightColumn).toInt()
                         val duration = if (cursor.isNull(durationColumn)) null else cursor.getLong(durationColumn).toInt()
                         
-                        // Create proper content URI
-                        val contentUri = Uri.withAppendedPath(
+                        // Use DATA path whenever possible for better Flutter compatibility
+                        val mediaUri = dataPath ?: Uri.withAppendedPath(
+                            MediaStore.Files.getContentUri("external"),
+                            id.toString()
+                        ).toString()
+                        
+                        val contentUriObj = Uri.withAppendedPath(
                             MediaStore.Files.getContentUri("external"),
                             id.toString()
                         )
                         
-                        val thumbnailPath = generateThumbnail(context, contentUri, mimeType)
+                        val thumbnailPath = generateThumbnail(context, contentUriObj, mimeType)
                         
                         val mediaItem = MediaItem(
                             id = id,
-                            uri = contentUri.toString(),
+                            uri = mediaUri,
                             name = name,
-                            type = if (mimeType.startsWith("image/")) "image" else "video",
+                            type = if (mimeType?.startsWith("image/") == true) "image" else "video",
                             size = size,
                             dateAdded = dateAdded,
                             dateModified = dateModified,

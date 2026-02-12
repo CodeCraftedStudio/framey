@@ -20,8 +20,8 @@
         android:label="Framey"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="false"
-        android:preserveLegacyExternalStorage="false">
+        android:requestLegacyExternalStorage="true"
+        android:preserveLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

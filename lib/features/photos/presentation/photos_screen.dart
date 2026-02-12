@@ -140,7 +140,11 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ...headers.map((header) {
             final items = groupedMedia[header]!;
+            if (items.isEmpty)
+              return const SliverToBoxAdapter(child: SizedBox.shrink());
+
             return SliverMainAxisGroup(
+              key: ValueKey('group_$header'),
               slivers: [
                 _buildStickyHeader(header),
                 _buildMediaGrid(items),
@@ -300,6 +304,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
       pinned: true,
       delegate: _DateHeaderDelegate(
         child: Container(
+          height: 48,
           color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.9),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
