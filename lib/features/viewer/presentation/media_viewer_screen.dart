@@ -208,15 +208,103 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                   color: Colors.white,
                 ),
               ),
-              IconButton(
-                onPressed: () {},
+              PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                onSelected: (value) async {
+                  if (value == 'info') {
+                    _showMediaDetails(currentItem);
+                  } else if (value == 'delete') {
+                    await _confirmAndDelete(currentItem);
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    value: 'info',
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, color: Colors.black),
+                        SizedBox(width: 12),
+                        Text('Info'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline_rounded, color: Colors.red),
+                        SizedBox(width: 12),
+                        Text('Delete', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _confirmAndDelete(MediaItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Move to Recycle Bin?'),
+        content: const Text(
+          'Item will be kept for 30 days before permanent deletion.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final success = await MediaStoreService.moveToRecycleBin(
+          int.parse(item.id),
+        );
+        if (success && mounted) {
+          setState(() {
+            _items.removeAt(_currentIndex);
+            if (_items.isEmpty) {
+              Navigator.pop(context);
+            } else {
+              if (_currentIndex >= _items.length) {
+                _currentIndex = _items.length - 1;
+              }
+              _pageController.jumpToPage(_currentIndex);
+            }
+          });
+
+          // Refresh global list in background
+          ref.read(mediaItemsProvider.notifier).refresh();
+
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Moved to Recycle Bin')));
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete item')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
   }
 
   void _showMediaDetails(MediaItem item) {
@@ -424,57 +512,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                 Icons.delete_outline_rounded,
                 'Delete',
                 color: Colors.redAccent,
-                onTap: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (c) => AlertDialog(
-                      title: const Text('Move to Recycle Bin?'),
-                      content: const Text(
-                        'Item will be kept for 30 days before permanent deletion.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(c, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(c, true),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirmed == true) {
-                    final success = await MediaStoreService.moveToRecycleBin(
-                      int.parse(currentItem.id),
-                    );
-                    if (success && mounted) {
-                      // Update UI immediately
-                      setState(() {
-                        _items.removeAt(_currentIndex);
-                        if (_items.isEmpty) {
-                          Navigator.pop(context);
-                        } else {
-                          if (_currentIndex >= _items.length) {
-                            _currentIndex = _items.length - 1;
-                          }
-                          _pageController.jumpToPage(_currentIndex);
-                        }
-                      });
-
-                      // Refresh global list in background
-                      ref.read(mediaItemsProvider.notifier).refresh();
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Moved to Recycle Bin')),
-                      );
-                    }
-                  }
-                },
+                onTap: () => _confirmAndDelete(currentItem),
               ),
             ],
           ),

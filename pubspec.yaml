@@ -49,6 +49,7 @@ dependencies:
   # AI & ML
   google_mlkit_face_detection: ^0.11.0
   geocoding: ^3.0.0
+  share_plus: ^12.0.1
 
 dev_dependencies:
   flutter_test:

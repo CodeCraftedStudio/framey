@@ -55,6 +55,7 @@ class FrameyApp extends ConsumerWidget {
         '/settings': (context) => const SettingsScreen(),
         '/about': (context) => const AboutScreen(),
         '/developer': (context) => const DeveloperScreen(),
+        '/search': (context) => const SearchScreen(),
       },
     );
   }

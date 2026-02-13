@@ -155,7 +155,8 @@ class MediaStoreManager(private val context: Context) {
 
             // 5. Search Filter
             if (searchQuery != null && searchQuery.isNotEmpty()) {
-                selection.append(" AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?")
+                selection.append(" AND (${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ? OR ${MediaStore.MediaColumns.BUCKET_DISPLAY_NAME} LIKE ?)")
+                selectionArgs.add("%$searchQuery%")
                 selectionArgs.add("%$searchQuery%")
             }
 
