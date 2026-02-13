@@ -3,6 +3,7 @@ package com.framey.gallery
 import android.content.Context
 import android.content.ContentUris
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -471,17 +472,43 @@ class MainActivity : FlutterFragmentActivity() {
             try {
                 val uri = Uri.parse(uriStr)
                 val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    contentResolver.loadThumbnail(uri, android.util.Size(width, height), null)
+                    try {
+                        contentResolver.loadThumbnail(uri, android.util.Size(width, height), null)
+                    } catch (e: Exception) {
+                        null
+                    }
                 } else {
-                    val id = try { ContentUris.parseId(uri) } catch (e: Exception) { -1L }
-                    if (id != -1L) {
-                        MediaStore.Images.Thumbnails.getThumbnail(contentResolver, id, MediaStore.Images.Thumbnails.MINI_KIND, null)
-                    } else null
+                    // For older Android, checking if large size requested
+                    if (width > 512 || height > 512) {
+                         // Load full image scaled down to requested size
+                         try {
+                             contentResolver.openInputStream(uri)?.use { input ->
+                                  val options = BitmapFactory.Options().apply {
+                                      inJustDecodeBounds = true
+                                  }
+                                  BitmapFactory.decodeStream(input, null, options)
+                                  
+                                  // Calculate inSampleSize
+                                  options.inSampleSize = calculateInSampleSize(options, width, height)
+                                  options.inJustDecodeBounds = false
+                                  
+                                  // Re-open stream to decode
+                                  contentResolver.openInputStream(uri)?.use { input2 ->
+                                      BitmapFactory.decodeStream(input2, null, options)
+                                  }
+                             }
+                         } catch (e: Exception) { null }
+                    } else {
+                        val id = try { ContentUris.parseId(uri) } catch (e: Exception) { -1L }
+                        if (id != -1L) {
+                            MediaStore.Images.Thumbnails.getThumbnail(contentResolver, id, MediaStore.Images.Thumbnails.MINI_KIND, null)
+                        } else null
+                    }
                 }
                 
                 if (bitmap != null) {
                     val stream = java.io.ByteArrayOutputStream()
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
                     val bytes = stream.toByteArray()
                     runOnUiThread { result.success(bytes) }
                 } else {
@@ -491,6 +518,19 @@ class MainActivity : FlutterFragmentActivity() {
                 runOnUiThread { result.error("THUMB_ERROR", e.message, null) }
             }
         }
+    }
+
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val (height: Int, width: Int) = options.outHeight to options.outWidth
+        var inSampleSize = 1
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight: Int = height / 2
+            val halfWidth: Int = width / 2
+            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
     }
 
     private fun handleGetMediaBytes(call: MethodCall, result: MethodChannel.Result) {
@@ -503,6 +543,8 @@ class MainActivity : FlutterFragmentActivity() {
                     val bytes = inputStream.readBytes()
                     runOnUiThread { result.success(bytes) }
                 } ?: runOnUiThread { result.error("BYTES_ERROR", "Failed to open stream", null) }
+            } catch (e: OutOfMemoryError) {
+                runOnUiThread { result.error("OOM_ERROR", "Image too large for memory", null) }
             } catch (e: Exception) {
                 runOnUiThread { result.error("BYTES_ERROR", e.message, null) }
             }

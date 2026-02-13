@@ -10,6 +10,7 @@ import '../../../shared/domain/media_item.dart';
 import '../../../shared/data/media_store_service.dart';
 import '../../../shared/data/media_provider.dart';
 import '../../editor/presentation/image_editor_screen.dart';
+import '../../../shared/presentation/widgets/framey_image.dart';
 
 class MediaViewerScreen extends ConsumerStatefulWidget {
   final List<MediaItem>? initialItems;
@@ -145,13 +146,14 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
   }
 
   ImageProvider _buildImageProvider(MediaItem item) {
-    if (File(item.uri).existsSync()) {
-      return FileImage(File(item.uri));
-    } else if (item.thumbnailUri != null &&
-        File(item.thumbnailUri!).existsSync()) {
-      return FileImage(File(item.thumbnailUri!));
-    }
-    return const AssetImage('assets/images/placeholder.png');
+    // Use FrameyImage.provider which correctly handles content:// URIs
+    // and loads high-resolution thumbnails/images.
+    // We request a large size (e.g., 1024x1024 or larger) for the viewer.
+    return FrameyImage.provider(
+      item.uri,
+      width: 1920, // Request high res
+      height: 1920,
+    );
   }
 
   Widget _buildVideoPlayer() {
@@ -451,7 +453,22 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                       int.parse(currentItem.id),
                     );
                     if (success && mounted) {
-                      Navigator.pop(context);
+                      // Update UI immediately
+                      setState(() {
+                        _items.removeAt(_currentIndex);
+                        if (_items.isEmpty) {
+                          Navigator.pop(context);
+                        } else {
+                          if (_currentIndex >= _items.length) {
+                            _currentIndex = _items.length - 1;
+                          }
+                          _pageController.jumpToPage(_currentIndex);
+                        }
+                      });
+
+                      // Refresh global list in background
+                      ref.read(mediaItemsProvider.notifier).refresh();
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Moved to Recycle Bin')),
                       );

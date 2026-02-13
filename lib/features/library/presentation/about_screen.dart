@@ -23,13 +23,21 @@ class AboutScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(40),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.photo_library_rounded,
-                size: 80,
-                color: Colors.blue,
+              child: Image.asset(
+                'assets/images/lodaing_icon.png',
+                width: 80,
+                height: 80,
+                fit: BoxFit.contain,
               ),
             ),
             const SizedBox(height: 24),

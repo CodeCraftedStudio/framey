@@ -58,4 +58,9 @@ class MediaItemsNotifier extends StateNotifier<MediaItemsState> {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
+
+  Future<void> refresh() async {
+    // We should probably preserve the current offset/limit or reset to default
+    await loadMediaItems();
+  }
 }
