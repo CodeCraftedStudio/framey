@@ -133,7 +133,7 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
             Icon(
               Icons.video_collection_outlined,
               size: 80,
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withValues(alpha: 0.2),
             ),
             const SizedBox(height: 16),
             Text(
@@ -176,7 +176,7 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -192,7 +192,7 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
                               File(item.thumbnailUri!),
                               fit: BoxFit.cover,
                             )
-                          : Container(color: Colors.grey.withOpacity(0.1)),
+                          : Container(color: Colors.grey.withValues(alpha: 0.1)),
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -200,7 +200,7 @@ class _VideoScreenState extends ConsumerState<VideoScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.4),
+                              Colors.black.withValues(alpha: 0.4),
                             ],
                           ),
                         ),

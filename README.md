@@ -190,6 +190,15 @@ Key dependencies include:
 
 ## 📰 Recent Updates
 
+### v1.0.2 - Video Player & Bug Fixes
+- 🎬 **Fixed Video Playback**: Resolved content URI issue preventing videos from playing (now uses file paths)
+- 🎛️ **Full Video Controls**: Play/pause, seek bar, forward/rewind 10s, time display with auto-hide
+- 📐 **Draggable Timeline**: Hold and drag the seek bar to scrub through videos
+- 📸 **Fixed Timeline Headers**: Sticky date headers now update correctly when scrolling through photos
+- 🚫 **Removed Deprecated APIs**: Replaced `DecoderBufferCallback` with `ImageDecoderCallback`, `withOpacity()` with `withValues(alpha:)`
+- 🎯 **Improved Responsiveness**: Fixed video controls disappearing on touch, added proper tap handling
+- 📱 **Pinned App Bar**: App bar now stays fixed while date headers scroll beneath it
+
 ### v1.0.1 - UI Enhancement Release
 - ✨ **Modern UI Overhaul**: Added smooth animations, Material 3 design, and enhanced visual hierarchy
 - 🔍 **Real-time Search**: Implemented functional search bar with instant photo filtering

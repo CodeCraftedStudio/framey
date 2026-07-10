@@ -38,12 +38,12 @@ class AppTheme {
     iconTheme: const IconThemeData(color: Colors.white, size: 24),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: surfaceDark,
-      indicatorColor: primaryColor.withOpacity(0.1),
+      indicatorColor: primaryColor.withValues(alpha: 0.1),
       iconTheme: MaterialStateProperty.resolveWith((states) {
         if (states.contains(MaterialState.selected)) {
           return IconThemeData(color: primaryColor, size: 26);
         }
-        return IconThemeData(color: Colors.white.withOpacity(0.5), size: 24);
+        return IconThemeData(color: Colors.white.withValues(alpha: 0.5), size: 24);
       }),
       labelTextStyle: MaterialStateProperty.resolveWith((states) {
         if (states.contains(MaterialState.selected)) {
@@ -54,7 +54,7 @@ class AppTheme {
           );
         }
         return GoogleFonts.plusJakartaSans(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           fontWeight: FontWeight.w500,
           fontSize: 12,
         );
@@ -77,7 +77,7 @@ class AppTheme {
       ThemeData.light().textTheme,
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: const Color(0xFFF8FAFC).withOpacity(0.8),
+      backgroundColor: const Color(0xFFF8FAFC).withValues(alpha: 0.8),
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
@@ -92,7 +92,7 @@ class AppTheme {
     scaffoldBackgroundColor: const Color(0xFFF8FAFC),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.white,
-      indicatorColor: primaryColor.withOpacity(0.1),
+      indicatorColor: primaryColor.withValues(alpha: 0.1),
       labelTextStyle: MaterialStateProperty.resolveWith((states) {
         if (states.contains(MaterialState.selected)) {
           return GoogleFonts.plusJakartaSans(

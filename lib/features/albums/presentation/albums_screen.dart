@@ -222,11 +222,11 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
               border: Border.all(
                 color: Theme.of(
                   context,
-                ).colorScheme.onSurface.withOpacity(0.05),
+                ).colorScheme.onSurface.withValues(alpha: 0.05),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.08),
+                  color: color.withValues(alpha: 0.08),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -239,7 +239,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [color.withOpacity(0.2), color.withOpacity(0.1)],
+                      colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.1)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -297,7 +297,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
               '${_albums.length} Total',
               style: TextStyle(
                 fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -318,7 +318,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
               Icon(
                 Icons.folder_open_rounded,
                 size: 80,
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               ),
               const SizedBox(height: 16),
               Text(
@@ -374,7 +374,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -382,7 +382,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                         border: Border.all(
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.05),
+                          ).colorScheme.onSurface.withValues(alpha: 0.05),
                         ),
                       ),
                       child: ClipRRect(
@@ -396,12 +396,12 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                               Container(
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.primary.withOpacity(0.05),
+                                ).colorScheme.primary.withValues(alpha: 0.05),
                                 child: Icon(
                                   Icons.folder_rounded,
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.primary.withOpacity(0.2),
+                                  ).colorScheme.primary.withValues(alpha: 0.2),
                                   size: 40,
                                 ),
                               ),
@@ -414,7 +414,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
+                                  color: Colors.black.withValues(alpha: 0.6),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Text(

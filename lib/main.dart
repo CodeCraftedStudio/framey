@@ -96,16 +96,16 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               height: 72,
               decoration: BoxDecoration(
                 color: isDark
-                    ? const Color(0xFF1A1C1E).withOpacity(0.9)
-                    : Colors.white.withOpacity(0.9),
+                    ? const Color(0xFF1A1C1E).withValues(alpha: 0.9)
+                    : Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(36),
                 border: Border.all(
-                  color: theme.colorScheme.onSurface.withOpacity(0.08),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 24,
                     offset: const Offset(0, 8),
                   ),
@@ -134,7 +134,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final isSelected = _selectedIndex == index;
     final theme = Theme.of(context);
     final activeColor = theme.colorScheme.primary;
-    final inactiveColor = theme.colorScheme.onSurface.withOpacity(0.4);
+    final inactiveColor = theme.colorScheme.onSurface.withValues(alpha: 0.4);
 
     return Expanded(
       child: GestureDetector(

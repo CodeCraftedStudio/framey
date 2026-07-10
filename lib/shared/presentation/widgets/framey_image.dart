@@ -84,7 +84,7 @@ class FrameyImage extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: Colors.grey.withOpacity(0.1),
+      color: Colors.grey.withValues(alpha: 0.1),
       child: const Center(
         child: SizedBox(
           width: 20,
@@ -99,7 +99,7 @@ class FrameyImage extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: Colors.grey.withOpacity(0.1),
+      color: Colors.grey.withValues(alpha: 0.1),
       child: const Icon(Icons.broken_image_rounded, color: Colors.grey),
     );
   }
@@ -115,22 +115,6 @@ class MediaStoreImageProvider extends ImageProvider<MediaStoreImageProvider> {
   @override
   Future<MediaStoreImageProvider> obtainKey(ImageConfiguration configuration) {
     return Future.value(this);
-  }
-
-  @override
-  ImageStreamCompleter loadBuffer(
-    MediaStoreImageProvider key,
-    DecoderBufferCallback decode,
-  ) {
-    return MultiFrameImageStreamCompleter(
-      codec: _loadAsync(key, decode),
-      scale: 1.0,
-      debugLabel: uri,
-      informationCollector: () => <DiagnosticsNode>[
-        DiagnosticsProperty<ImageProvider>('Image provider', this),
-        DiagnosticsProperty<MediaStoreImageProvider>('Image key', key),
-      ],
-    );
   }
 
   @override

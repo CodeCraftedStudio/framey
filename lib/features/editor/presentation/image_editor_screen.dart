@@ -220,7 +220,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           TextButton(
             onPressed: _isSaving ? null : _saveImage,
             style: TextButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.1),
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
               padding: const EdgeInsets.symmetric(horizontal: 20),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -270,7 +270,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             aspectRatio: null,
             initialRectBuilder: InitialRectBuilder.withSizeAndRatio(size: 0.8),
             baseColor: Colors.black,
-            maskColor: Colors.black.withOpacity(0.5),
+            maskColor: Colors.black.withValues(alpha: 0.5),
           ),
         ),
       );
@@ -393,7 +393,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     return Container(
       padding: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: Colors.grey.withValues(alpha: 0.05),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
@@ -532,7 +532,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       height: 80,
       alignment: Alignment.center,
       child: Text(
-        '${_activeTool} options coming soon',
+        '$_activeTool options coming soon',
         style: const TextStyle(color: Colors.grey),
       ),
     );
