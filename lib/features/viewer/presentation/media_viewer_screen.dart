@@ -36,6 +36,8 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
   late final AnimationController _controlsController;
   bool _isVideoInitialized = false;
 
+  bool _isVideoControlsVisible = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,29 +52,65 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
     _controlsController.forward();
 
     if (_items.isNotEmpty && _items[_currentIndex].type == MediaType.video) {
+      _isVideoControlsVisible = true;
       _initVideo(_items[_currentIndex].uri);
     }
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _videoController?.removeListener(_videoListener);
     _videoController?.dispose();
+    _pageController.dispose();
     _controlsController.dispose();
     super.dispose();
   }
 
   Future<void> _initVideo(String uri) async {
     _videoController?.dispose();
+    _videoController = null;
     setState(() => _isVideoInitialized = false);
-    _videoController = VideoPlayerController.file(File(uri));
+
     try {
+      final file = File(uri);
+      if (!await file.exists()) {
+        debugPrint('Framey: Video file does not exist: $uri');
+        return;
+      }
+
+      _videoController = VideoPlayerController.file(file);
       await _videoController!.initialize();
-      setState(() => _isVideoInitialized = true);
-      _videoController!.play();
+
+      if (mounted) {
+        setState(() => _isVideoInitialized = true);
+        _videoController!.play();
+        _videoController!.addListener(_videoListener);
+      }
     } catch (e) {
-      debugPrint('Error initializing video: $e');
+      debugPrint('Framey: Error initializing video: $e');
+      if (mounted) {
+        setState(() => _isVideoInitialized = false);
+      }
     }
+  }
+
+  void _videoListener() {
+    if (!mounted || _videoController == null) return;
+    final value = _videoController!.value;
+    if (value.hasError) {
+      debugPrint('Framey: Video player error: ${value.errorDescription}');
+    }
+    if (value.isPlaying && _isVideoControlsVisible) {
+      _startAutoHideTimer();
+    }
+  }
+
+  void _startAutoHideTimer() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && _videoController != null && _videoController!.value.isPlaying) {
+        setState(() => _isVideoControlsVisible = false);
+      }
+    });
   }
 
   void _onPageChanged(int index) {
@@ -80,19 +118,36 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
       _currentIndex = index;
     });
     if (_items[index].type == MediaType.video) {
+      _isVideoControlsVisible = true;
       _initVideo(_items[index].uri);
     } else {
+      _videoController?.removeListener(_videoListener);
       _videoController?.pause();
+      _videoController?.seekTo(Duration.zero);
+      setState(() {
+        _isVideoInitialized = false;
+        _isVideoControlsVisible = false;
+      });
     }
   }
 
   void _toggleControls() {
-    setState(() {
-      _isControlsVisible = !_isControlsVisible;
-      _isControlsVisible
-          ? _controlsController.forward()
-          : _controlsController.reverse();
-    });
+    final isVideo = _items[_currentIndex].type == MediaType.video;
+    if (isVideo) {
+      setState(() {
+        _isVideoControlsVisible = !_isVideoControlsVisible;
+        if (_isVideoControlsVisible && _videoController?.value.isPlaying == true) {
+          _startAutoHideTimer();
+        }
+      });
+    } else {
+      setState(() {
+        _isControlsVisible = !_isControlsVisible;
+        _isControlsVisible
+            ? _controlsController.forward()
+            : _controlsController.reverse();
+      });
+    }
   }
 
   @override
@@ -138,8 +193,10 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
               onPageChanged: _onPageChanged,
             ),
           ),
-          _buildTopBar(),
-          _buildBottomBar(),
+          if (_items[_currentIndex].type != MediaType.video || _isVideoControlsVisible) ...[
+            _buildTopBar(),
+            _buildBottomBar(),
+          ],
         ],
       ),
     );
@@ -157,17 +214,204 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
   }
 
   Widget _buildVideoPlayer() {
-    if (!_isVideoInitialized || _videoController == null) {
+    if (_videoController == null || !_isVideoInitialized) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.white),
       );
     }
-    return Center(
-      child: AspectRatio(
-        aspectRatio: _videoController!.value.aspectRatio,
-        child: VideoPlayer(_videoController!),
+
+    final controller = _videoController!;
+    final value = controller.value;
+    final position = value.position;
+    final duration = value.duration;
+    final isPlaying = value.isPlaying;
+
+    return GestureDetector(
+      onTap: _toggleControls,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AspectRatio(
+            aspectRatio: value.aspectRatio,
+            child: VideoPlayer(controller),
+          ),
+          if (_isVideoControlsVisible) _buildVideoControlsOverlay(controller),
+          if (!isPlaying && !_isVideoControlsVisible)
+            GestureDetector(
+              onTap: () {
+                controller.play();
+                setState(() {});
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(12),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 48,
+                ),
+              ),
+            ),
+        ],
       ),
     );
+  }
+
+  Widget _buildVideoControlsOverlay(VideoPlayerController controller) {
+    final value = controller.value;
+    final position = value.position;
+    final duration = value.duration;
+
+    return GestureDetector(
+      onTap: () {},
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withOpacity(0.4),
+              Colors.transparent,
+              Colors.transparent,
+              Colors.black.withOpacity(0.6),
+            ],
+            stops: const [0.0, 0.2, 0.7, 1.0],
+          ),
+        ),
+        child: Column(
+          children: [
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildVideoControlButton(
+                  icon: Icons.replay_10_rounded,
+                  onTap: () {
+                    final newPos = position - const Duration(seconds: 10);
+                    controller.seekTo(
+                      newPos < Duration.zero ? Duration.zero : newPos,
+                    );
+                  },
+                ),
+                const SizedBox(width: 32),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      value.isPlaying
+                          ? controller.pause()
+                          : controller.play();
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Icon(
+                      value.isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 32),
+                _buildVideoControlButton(
+                  icon: Icons.forward_10_rounded,
+                  onTap: () {
+                    final newPos = position + const Duration(seconds: 10);
+                    controller.seekTo(
+                      newPos > duration ? duration : newPos,
+                    );
+                  },
+                ),
+              ],
+            ),
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Text(
+                    _formatVideoDuration(position),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderThemeData(
+                        activeTrackColor: Colors.white,
+                        inactiveTrackColor: Colors.white.withOpacity(0.3),
+                        thumbColor: Colors.white,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 6,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 14,
+                        ),
+                        trackHeight: 2,
+                        overlayColor: Colors.white.withOpacity(0.1),
+                      ),
+                      child: Slider(
+                        value: position.inMilliseconds
+                            .toDouble()
+                            .clamp(0.0, duration.inMilliseconds.toDouble()),
+                        max: duration.inMilliseconds.toDouble(),
+                        onChanged: (val) {
+                          controller.seekTo(
+                            Duration(milliseconds: val.toInt()),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _formatVideoDuration(duration),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoControlButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          shape: BoxShape.circle,
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Icon(icon, color: Colors.white, size: 28),
+      ),
+    );
+  }
+
+  String _formatVideoDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   Widget _buildTopBar() {
@@ -208,15 +452,103 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                   color: Colors.white,
                 ),
               ),
-              IconButton(
-                onPressed: () {},
+              PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                onSelected: (value) async {
+                  if (value == 'info') {
+                    _showMediaDetails(currentItem);
+                  } else if (value == 'delete') {
+                    await _confirmAndDelete(currentItem);
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    value: 'info',
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, color: Colors.black),
+                        SizedBox(width: 12),
+                        Text('Info'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline_rounded, color: Colors.red),
+                        SizedBox(width: 12),
+                        Text('Delete', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _confirmAndDelete(MediaItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Move to Recycle Bin?'),
+        content: const Text(
+          'Item will be kept for 30 days before permanent deletion.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final success = await MediaStoreService.moveToRecycleBin(
+          int.parse(item.id),
+        );
+        if (success && mounted) {
+          setState(() {
+            _items.removeAt(_currentIndex);
+            if (_items.isEmpty) {
+              Navigator.pop(context);
+            } else {
+              if (_currentIndex >= _items.length) {
+                _currentIndex = _items.length - 1;
+              }
+              _pageController.jumpToPage(_currentIndex);
+            }
+          });
+
+          // Refresh global list in background
+          ref.read(mediaItemsProvider.notifier).refresh();
+
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Moved to Recycle Bin')));
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete item')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
   }
 
   void _showMediaDetails(MediaItem item) {
@@ -424,57 +756,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                 Icons.delete_outline_rounded,
                 'Delete',
                 color: Colors.redAccent,
-                onTap: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (c) => AlertDialog(
-                      title: const Text('Move to Recycle Bin?'),
-                      content: const Text(
-                        'Item will be kept for 30 days before permanent deletion.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(c, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(c, true),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirmed == true) {
-                    final success = await MediaStoreService.moveToRecycleBin(
-                      int.parse(currentItem.id),
-                    );
-                    if (success && mounted) {
-                      // Update UI immediately
-                      setState(() {
-                        _items.removeAt(_currentIndex);
-                        if (_items.isEmpty) {
-                          Navigator.pop(context);
-                        } else {
-                          if (_currentIndex >= _items.length) {
-                            _currentIndex = _items.length - 1;
-                          }
-                          _pageController.jumpToPage(_currentIndex);
-                        }
-                      });
-
-                      // Refresh global list in background
-                      ref.read(mediaItemsProvider.notifier).refresh();
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Moved to Recycle Bin')),
-                      );
-                    }
-                  }
-                },
+                onTap: () => _confirmAndDelete(currentItem),
               ),
             ],
           ),

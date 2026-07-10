@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/domain/media_item.dart';
 import '../../../shared/data/media_store_service.dart';
+import '../../../shared/presentation/widgets/framey_image.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -19,6 +19,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _isSearching = false;
   bool _isLoading = false;
   Timer? _debounce;
+  String _selectedSearchType = 'all';
 
   @override
   void initState() {
@@ -37,10 +38,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final query = _searchController.text.trim();
     if (query.isEmpty) {
       if (_isSearching) {
-        setState(() {
-          _isSearching = false;
-          _searchResults.clear();
-        });
+        // If we are clearing text but still have a type filter, we should re-search with empty query
+        if (_selectedSearchType != 'all') {
+          _performSearch('');
+        } else {
+          setState(() {
+            _isSearching = false;
+            _searchResults.clear();
+          });
+        }
       }
     } else {
       if (!_isSearching) {
@@ -57,13 +63,49 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Future<void> _performSearch(String query) async {
     setState(() => _isLoading = true);
     try {
-      final items = await MediaStoreService.getMediaItems(searchQuery: query);
+      // Determine media type filter
+      String? mediaType;
+      if (_selectedSearchType == 'photos') {
+        mediaType = 'image';
+      } else if (_selectedSearchType == 'videos') {
+        mediaType = 'video';
+      }
+
+      final items = await MediaStoreService.getMediaItems(
+        searchQuery: query,
+        mediaType: mediaType,
+      );
+
       setState(() {
         _searchResults = items;
         _isLoading = false;
+        // Ensure we are in searching mode if we have results or if we specifically requested a search
+        _isSearching = true;
       });
     } catch (e) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  void _onSearchTypeChanged(String type) {
+    setState(() {
+      _selectedSearchType = type;
+    });
+    // Re-run search
+    // If text is not empty, use it. If it is empty, pass empty string to find all by type.
+    final query = _searchController.text.trim();
+
+    // If we are purely browsing by category (e.g. videos) without text, we want to trigger search
+    if (query.isEmpty && type != 'all') {
+      _performSearch('');
+    } else if (query.isNotEmpty) {
+      _performSearch(query);
+    } else if (query.isEmpty && type == 'all') {
+      // Back to default view
+      setState(() {
+        _isSearching = false;
+        _searchResults.clear();
+      });
     }
   }
 
@@ -75,21 +117,66 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         physics: const BouncingScrollPhysics(),
         slivers: [
           _buildSliverAppBar(),
+          if (_isSearching) _buildFilterChips(),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
           if (!_isSearching) ...[
-            _buildSectionHeader('People & Pets', 'Manage faces'),
-            _buildPeopleHorizontalScroll(),
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-            _buildSectionHeader('Places', 'Your travels'),
-            _buildPlacesHorizontalScroll(),
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-            _buildSectionHeader('Categories', 'Auto-labeled'),
+            _buildSectionHeader('Quick Access', 'Common folders & types'),
             _buildCategoriesGrid(),
           ] else ...[
             _buildSearchResultsGrid(),
           ],
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SliverToBoxAdapter(
+      child: Container(
+        height: 60,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          children: [
+            _buildFilterChip('All', 'all'),
+            const SizedBox(width: 8),
+            _buildFilterChip('Photos', 'photos'),
+            const SizedBox(width: 8),
+            _buildFilterChip('Videos', 'videos'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value) {
+    final isSelected = _selectedSearchType == value;
+    return GestureDetector(
+      onTap: () => _onSearchTypeChanged(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -177,135 +264,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
               ],
             ),
-            TextButton(
-              onPressed: () {},
-              child: Text(
-                'View all',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPeopleHorizontalScroll() {
-    return SliverToBoxAdapter(
-      child: SizedBox(
-        height: 110,
-        child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          scrollDirection: Axis.horizontal,
-          itemCount: 8,
-          itemBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Column(
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.surface,
-                        width: 2,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: Container(
-                        color: Colors.blue.withOpacity(0.1),
-                        child: Icon(
-                          Icons.person_rounded,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.5),
-                          size: 40,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlacesHorizontalScroll() {
-    return SliverToBoxAdapter(
-      child: SizedBox(
-        height: 160,
-        child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          scrollDirection: Axis.horizontal,
-          itemCount: 5,
-          itemBuilder: (context, index) {
-            return Container(
-              width: 220,
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: Container(
-                        color: Colors.green.withOpacity(0.1),
-                        child: Center(
-                          child: Icon(
-                            Icons.map_rounded,
-                            color: Colors.green.withOpacity(0.2),
-                            size: 50,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.8),
-                          ],
-                        ),
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(24),
-                        ),
-                      ),
-                      child: Text(
-                        'San Francisco',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
         ),
       ),
     );
@@ -313,27 +272,41 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildCategoriesGrid() {
     final categories = [
-      {'name': 'Nature', 'icon': Icons.landscape_rounded, 'color': Colors.teal},
       {
-        'name': 'Food',
-        'icon': Icons.restaurant_rounded,
-        'color': Colors.orange,
-      },
-      {
-        'name': 'Sports',
-        'icon': Icons.sports_basketball_rounded,
-        'color': Colors.red,
-      },
-      {
-        'name': 'Documents',
-        'icon': Icons.description_outlined,
+        'name': 'Screenshots',
+        'icon': Icons.screenshot_rounded,
         'color': Colors.blue,
+        'query': 'Screenshot',
       },
-      {'name': 'Night', 'icon': Icons.nightlight_round, 'color': Colors.indigo},
       {
         'name': 'Videos',
         'icon': Icons.play_circle_fill_rounded,
+        'color': Colors.red,
+        'type': 'videos',
+      },
+      {
+        'name': 'Camera',
+        'icon': Icons.camera_alt_rounded,
         'color': Colors.purple,
+        'query': 'Camera',
+      },
+      {
+        'name': 'Downloads',
+        'icon': Icons.download_rounded,
+        'color': Colors.green,
+        'query': 'Download',
+      },
+      {
+        'name': 'WhatsApp',
+        'icon': Icons.chat_bubble_rounded,
+        'color': Colors.teal,
+        'query': 'WhatsApp',
+      },
+      {
+        'name': 'Instagram',
+        'icon': Icons.camera_enhance_rounded,
+        'color': Colors.pink,
+        'query': 'Instagram',
       },
     ];
 
@@ -344,39 +317,60 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           crossAxisCount: 2,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 2.2,
+          childAspectRatio: 2.5,
         ),
         delegate: SliverChildBuilderDelegate((context, index) {
           final cat = categories[index];
-          return Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: (cat['color'] as Color).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+          return GestureDetector(
+            onTap: () {
+              if (cat['type'] == 'videos') {
+                _onSearchTypeChanged('videos');
+              } else if (cat['query'] != null) {
+                _searchController.text = cat['query'] as String;
+                // Manually trigger performSearch because the listener might be debounced or we want instant feedback
+                // Note: setting text triggers listener.
+                // But listener has logic: if query is not empty ...
+                // Let's force it.
+                _performSearch(cat['query'] as String);
+              }
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  child: Icon(
-                    cat['icon'] as IconData,
-                    color: cat['color'] as Color,
-                    size: 20,
+                ],
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 16),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (cat['color'] as Color).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      cat['icon'] as IconData,
+                      color: cat['color'] as Color,
+                      size: 20,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  cat['name'] as String,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(width: 12),
+                  Text(
+                    cat['name'] as String,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         }, childCount: categories.length),
@@ -404,7 +398,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'No results for "${_searchController.text}"',
+                _searchController.text.isEmpty
+                    ? 'No items found'
+                    : 'No results for "${_searchController.text}"',
                 style: TextStyle(
                   color: Theme.of(
                     context,
@@ -440,12 +436,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               tag: 'media_${item.id}',
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: item.thumbnailUri != null
-                    ? Image.file(File(item.thumbnailUri!), fit: BoxFit.cover)
-                    : Container(
-                        color: Colors.grey.withOpacity(0.1),
-                        child: const Icon(Icons.image),
-                      ),
+                child: FrameyImage(
+                  uri: item.thumbnailUri ?? item.uri,
+                  fit: BoxFit.cover,
+                  width: 200,
+                  height: 200,
+                  placeholder: Container(
+                    color: Colors.grey.withOpacity(0.1),
+                    child: const Center(
+                      child: Icon(Icons.image, color: Colors.grey),
+                    ),
+                  ),
+                  errorWidget: Container(
+                    color: Colors.grey.withOpacity(0.1),
+                    child: const Center(
+                      child: Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  ),
+                ),
               ),
             ),
           );

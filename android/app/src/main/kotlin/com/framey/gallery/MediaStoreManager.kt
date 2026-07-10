@@ -155,7 +155,8 @@ class MediaStoreManager(private val context: Context) {
 
             // 5. Search Filter
             if (searchQuery != null && searchQuery.isNotEmpty()) {
-                selection.append(" AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?")
+                selection.append(" AND (${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ? OR ${MediaStore.MediaColumns.BUCKET_DISPLAY_NAME} LIKE ?)")
+                selectionArgs.add("%$searchQuery%")
                 selectionArgs.add("%$searchQuery%")
             }
 
@@ -178,6 +179,7 @@ class MediaStoreManager(private val context: Context) {
                 val wCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.WIDTH)
                 val hCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.HEIGHT)
                 val dCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
 
                 var processedItems = 0
                 var currentPos = 0
@@ -186,6 +188,7 @@ class MediaStoreManager(private val context: Context) {
                     if (currentPos >= offset && processedItems < limit) {
                         val id = cursor.getLong(idCol)
                         val mime = cursor.getString(mimeCol)
+                        val dataPath = cursor.getString(dataCol)
                         
                         val baseUri = if (mime?.startsWith("video/") == true) {
                             MediaStore.Video.Media.EXTERNAL_CONTENT_URI
@@ -193,9 +196,18 @@ class MediaStoreManager(private val context: Context) {
                             MediaStore.Images.Media.EXTERNAL_CONTENT_URI
                         }
                         
+                        val contentUri = ContentUris.withAppendedId(baseUri, id).toString()
+                        
+                        // Use file path for videos (required for video_player), content URI for images
+                        val uri = if (mime?.startsWith("video/") == true && !dataPath.isNullOrEmpty()) {
+                            dataPath
+                        } else {
+                            contentUri
+                        }
+                        
                         mediaList.add(MediaItem(
                             id = id,
-                            uri = ContentUris.withAppendedId(baseUri, id).toString(),
+                            uri = uri,
                             name = cursor.getString(nameCol),
                             type = if (mime?.startsWith("video/") == true) "video" else "image",
                             size = cursor.getLong(sizeCol),

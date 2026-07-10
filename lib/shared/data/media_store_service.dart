@@ -255,4 +255,20 @@ class MediaStoreService {
       return null;
     }
   }
+
+  static Future<bool> shareMediaItems(
+    List<String> uris, {
+    String type = 'image/*',
+  }) async {
+    try {
+      final result = await _channel.invokeMethod<bool>('shareMediaItems', {
+        'uris': uris,
+        'type': type,
+      });
+      return result ?? false;
+    } catch (e) {
+      debugPrint('Error sharing media: $e');
+      return false;
+    }
+  }
 }

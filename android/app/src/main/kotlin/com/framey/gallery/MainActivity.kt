@@ -2,6 +2,7 @@ package com.framey.gallery
 
 import android.content.Context
 import android.content.ContentUris
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -18,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.ArrayList
 
 class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "com.framey.gallery/mediastore"
@@ -52,6 +54,7 @@ class MainActivity : FlutterFragmentActivity() {
                 "emptyRecycleBin" -> handleEmptyRecycleBin(call, result)
                 "hideMediaItem" -> handleHideMediaItem(call, result)
                 "unhideMediaItem" -> handleUnhideMediaItem(call, result)
+                "shareMediaItems" -> handleShareMediaItems(call, result)
                 else -> result.notImplemented()
             }
         }
@@ -70,22 +73,15 @@ class MainActivity : FlutterFragmentActivity() {
     private fun checkMediaPermissions(result: MethodChannel.Result) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13+ - check both image and video permissions
                 val hasImagesPermission = checkSelfPermission(android.Manifest.permission.READ_MEDIA_IMAGES) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 val hasVideosPermission = checkSelfPermission(android.Manifest.permission.READ_MEDIA_VIDEO) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 val granted = hasImagesPermission && hasVideosPermission
-                
-                android.util.Log.d("Framey", "Android 13+ permissions - Images: $hasImagesPermission, Videos: $hasVideosPermission")
                 result.success(granted)
             } else {
-                // Android 12 and below - check storage permission
                 val hasStoragePermission = checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                
-                android.util.Log.d("Framey", "Android 12- storage permission: $hasStoragePermission")
                 result.success(hasStoragePermission)
             }
         } catch (e: Exception) {
-            android.util.Log.e("Framey", "Error checking permissions", e)
             result.error("PERMISSION_ERROR", "Failed to check permissions: ${e.message}", null)
         }
     }
@@ -93,27 +89,18 @@ class MainActivity : FlutterFragmentActivity() {
     private fun requestMediaPermissions(result: MethodChannel.Result) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13+ - request both image and video permissions
                 val permissions = arrayOf(
                     android.Manifest.permission.READ_MEDIA_IMAGES,
                     android.Manifest.permission.READ_MEDIA_VIDEO
                 )
-                
                 this.permissionResult = result
                 requestPermissions(permissions, PERMISSION_REQUEST_CODE)
-                
-                android.util.Log.d("Framey", "Requesting Android 13+ permissions: ${permissions.contentToString()}")
             } else {
-                // Android 12 and below - request storage permission
                 val permissions = arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-                
                 this.permissionResult = result
                 requestPermissions(permissions, PERMISSION_REQUEST_CODE)
-                
-                android.util.Log.d("Framey", "Requesting Android 12- permissions: ${permissions.contentToString()}")
             }
         } catch (e: Exception) {
-            android.util.Log.e("Framey", "Error requesting permissions", e)
             result.error("PERMISSION_ERROR", "Failed to request permissions: ${e.message}", null)
         }
     }
@@ -130,25 +117,18 @@ class MainActivity : FlutterFragmentActivity() {
             if (result != null) {
                 try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        // Android 13+ - check both image and video permissions
                         val imagesGranted = grantResults.isNotEmpty() && 
                             grantResults[permissions.indexOf(android.Manifest.permission.READ_MEDIA_IMAGES)] == android.content.pm.PackageManager.PERMISSION_GRANTED
                         val videosGranted = grantResults.isNotEmpty() && 
                             grantResults[permissions.indexOf(android.Manifest.permission.READ_MEDIA_VIDEO)] == android.content.pm.PackageManager.PERMISSION_GRANTED
                         val allGranted = imagesGranted && videosGranted
-                        
-                        android.util.Log.d("Framey", "Android 13+ permission result - Images: $imagesGranted, Videos: $videosGranted")
                         result.success(allGranted)
                     } else {
-                        // Android 12 and below - check storage permission
                         val storageGranted = grantResults.isNotEmpty() && 
                             grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
-                        
-                        android.util.Log.d("Framey", "Android 12- permission result - Storage: $storageGranted")
                         result.success(storageGranted)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("Framey", "Error processing permission result", e)
                     result.error("PERMISSION_ERROR", "Failed to process permission result: ${e.message}", null)
                 } finally {
                     this.permissionResult = null
@@ -232,8 +212,13 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
+    private fun getMediaId(call: MethodCall): Long? {
+        // Safe casting from Integer/Long/Number
+        return call.argument<Number>("mediaId")?.toLong()
+    }
+
     private fun handleDeleteMediaItem(call: MethodCall, result: MethodChannel.Result) {
-        val mediaId = call.argument<Long>("mediaId")
+        val mediaId = getMediaId(call)
         if (mediaId == null) {
             result.error("INVALID_ARGUMENT", "mediaId is required", null)
             return
@@ -257,7 +242,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun handleMoveToRecycleBin(call: MethodCall, result: MethodChannel.Result) {
-        val mediaId = call.argument<Long>("mediaId")
+        val mediaId = getMediaId(call)
         if (mediaId == null) {
             result.error("INVALID_ARGUMENT", "mediaId is required", null)
             return
@@ -281,7 +266,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun handleRestoreFromRecycleBin(call: MethodCall, result: MethodChannel.Result) {
-        val mediaId = call.argument<Long>("mediaId")
+        val mediaId = getMediaId(call)
         if (mediaId == null) {
             result.error("INVALID_ARGUMENT", "mediaId is required", null)
             return
@@ -305,7 +290,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun handleDeletePermanently(call: MethodCall, result: MethodChannel.Result) {
-        val mediaId = call.argument<Long>("mediaId")
+        val mediaId = getMediaId(call)
         if (mediaId == null) {
             result.error("INVALID_ARGUMENT", "mediaId is required", null)
             return
@@ -347,7 +332,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun handleHideMediaItem(call: MethodCall, result: MethodChannel.Result) {
-        val mediaId = call.argument<Long>("mediaId")
+        val mediaId = getMediaId(call)
         if (mediaId == null) {
             result.error("INVALID_ARGUMENT", "mediaId is required", null)
             return
@@ -371,7 +356,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun handleUnhideMediaItem(call: MethodCall, result: MethodChannel.Result) {
-        val mediaId = call.argument<Long>("mediaId")
+        val mediaId = getMediaId(call)
         if (mediaId == null) {
             result.error("INVALID_ARGUMENT", "mediaId is required", null)
             return
@@ -441,28 +426,6 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
-    private fun handleRequestMediaPermissions(call: MethodCall, result: MethodChannel.Result) {
-        try {
-            android.util.Log.d("Framey", "Requesting media permissions natively")
-
-            val permissions = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                arrayOf(
-                    android.Manifest.permission.READ_MEDIA_IMAGES,
-                    android.Manifest.permission.READ_MEDIA_VIDEO
-                )
-            } else {
-                arrayOf(
-                    android.Manifest.permission.READ_EXTERNAL_STORAGE
-                )
-            }
-
-            requestPermissions(permissions, 1002)
-            result.success(true)
-        } catch (e: Exception) {
-            android.util.Log.e("Framey", "Native permission request failed", e)
-            result.error("PERMISSION_ERROR", e.message, null)
-        }
-    }
     private fun handleGetMediaThumbnail(call: MethodCall, result: MethodChannel.Result) {
         val uriStr = call.argument<String>("uri") ?: return result.error("ARG_ERROR", "URI is required", null)
         val width = call.argument<Int>("width") ?: 200
@@ -478,21 +441,15 @@ class MainActivity : FlutterFragmentActivity() {
                         null
                     }
                 } else {
-                    // For older Android, checking if large size requested
                     if (width > 512 || height > 512) {
-                         // Load full image scaled down to requested size
                          try {
                              contentResolver.openInputStream(uri)?.use { input ->
                                   val options = BitmapFactory.Options().apply {
                                       inJustDecodeBounds = true
                                   }
                                   BitmapFactory.decodeStream(input, null, options)
-                                  
-                                  // Calculate inSampleSize
                                   options.inSampleSize = calculateInSampleSize(options, width, height)
                                   options.inJustDecodeBounds = false
-                                  
-                                  // Re-open stream to decode
                                   contentResolver.openInputStream(uri)?.use { input2 ->
                                       BitmapFactory.decodeStream(input2, null, options)
                                   }
@@ -548,6 +505,40 @@ class MainActivity : FlutterFragmentActivity() {
             } catch (e: Exception) {
                 runOnUiThread { result.error("BYTES_ERROR", e.message, null) }
             }
+        }
+    }
+
+    private fun handleShareMediaItems(call: MethodCall, result: MethodChannel.Result) {
+        val uris = call.argument<List<String>>("uris") ?: return result.error("ARG_ERROR", "URIs required", null)
+        val type = call.argument<String>("type") ?: "image/*"
+
+        if (uris.isEmpty()) {
+             result.error("ARG_ERROR", "No items to share", null)
+             return
+        }
+
+        try {
+            val uriList = ArrayList<Uri>()
+            for (uriStr in uris) {
+                uriList.add(Uri.parse(uriStr))
+            }
+
+            val shareIntent = Intent().apply {
+                if (uriList.size == 1) {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_STREAM, uriList[0])
+                } else {
+                    action = Intent.ACTION_SEND_MULTIPLE
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, uriList)
+                }
+                setType(type)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            
+            startActivity(Intent.createChooser(shareIntent, "Share Media"))
+            result.success(true)
+        } catch (e: Exception) {
+             result.error("SHARE_ERROR", e.message, null)
         }
     }
 }
