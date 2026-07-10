@@ -175,7 +175,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
           Icon(
             Icons.delete_outline_rounded,
             size: 80,
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           Text(
@@ -213,7 +213,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -231,7 +231,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
                         File(item.thumbnailUri!).existsSync()
                     ? Image.file(File(item.thumbnailUri!), fit: BoxFit.cover)
                     : Container(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         child: Icon(
                           item.type == MediaType.video
                               ? Icons.play_circle_outline
@@ -259,7 +259,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
                     Expanded(
                       child: LinearProgressIndicator(
                         value: progress,
-                        backgroundColor: Colors.grey.withOpacity(0.1),
+                        backgroundColor: Colors.grey.withValues(alpha: 0.1),
                         color: progress < 0.2
                             ? Colors.redAccent
                             : Theme.of(context).colorScheme.primary,

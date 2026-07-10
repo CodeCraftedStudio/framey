@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,8 +36,10 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
   bool _isControlsVisible = true;
   late final AnimationController _controlsController;
   bool _isVideoInitialized = false;
-
   bool _isVideoControlsVisible = false;
+  bool _isSeeking = false;
+  Duration _seekPosition = Duration.zero;
+  Timer? _autoHideTimer;
 
   @override
   void initState() {
@@ -59,6 +62,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
 
   @override
   void dispose() {
+    _autoHideTimer?.cancel();
     _videoController?.removeListener(_videoListener);
     _videoController?.dispose();
     _pageController.dispose();
@@ -85,6 +89,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
         setState(() => _isVideoInitialized = true);
         _videoController!.play();
         _videoController!.addListener(_videoListener);
+        _startAutoHideTimer();
       }
     } catch (e) {
       debugPrint('Framey: Error initializing video: $e');
@@ -100,20 +105,28 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
     if (value.hasError) {
       debugPrint('Framey: Video player error: ${value.errorDescription}');
     }
-    if (value.isPlaying && _isVideoControlsVisible) {
-      _startAutoHideTimer();
-    }
   }
 
   void _startAutoHideTimer() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted && _videoController != null && _videoController!.value.isPlaying) {
+    _autoHideTimer?.cancel();
+    _autoHideTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted &&
+          _videoController != null &&
+          _videoController!.value.isPlaying &&
+          !_isSeeking) {
         setState(() => _isVideoControlsVisible = false);
       }
     });
   }
 
+  void _resetAutoHide() {
+    if (_isVideoControlsVisible && _videoController?.value.isPlaying == true) {
+      _startAutoHideTimer();
+    }
+  }
+
   void _onPageChanged(int index) {
+    _autoHideTimer?.cancel();
     setState(() {
       _currentIndex = index;
     });
@@ -136,8 +149,10 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
     if (isVideo) {
       setState(() {
         _isVideoControlsVisible = !_isVideoControlsVisible;
-        if (_isVideoControlsVisible && _videoController?.value.isPlaying == true) {
-          _startAutoHideTimer();
+        if (_isVideoControlsVisible) {
+          _resetAutoHide();
+        } else {
+          _autoHideTimer?.cancel();
         }
       });
     } else {
@@ -193,7 +208,8 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
               onPageChanged: _onPageChanged,
             ),
           ),
-          if (_items[_currentIndex].type != MediaType.video || _isVideoControlsVisible) ...[
+          if (_items[_currentIndex].type != MediaType.video ||
+              _isVideoControlsVisible) ...[
             _buildTopBar(),
             _buildBottomBar(),
           ],
@@ -235,16 +251,20 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
             aspectRatio: value.aspectRatio,
             child: VideoPlayer(controller),
           ),
-          if (_isVideoControlsVisible) _buildVideoControlsOverlay(controller),
+          if (_isVideoControlsVisible)
+            Positioned.fill(child: _buildVideoControlsOverlay(controller)),
           if (!isPlaying && !_isVideoControlsVisible)
             GestureDetector(
               onTap: () {
-                controller.play();
-                setState(() {});
+                _resetAutoHide();
+                setState(() {
+                  _isVideoControlsVisible = true;
+                  controller.play();
+                });
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
                 padding: const EdgeInsets.all(12),
@@ -262,21 +282,21 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
 
   Widget _buildVideoControlsOverlay(VideoPlayerController controller) {
     final value = controller.value;
-    final position = value.position;
+    final displayPosition = _isSeeking ? _seekPosition : value.position;
     final duration = value.duration;
 
     return GestureDetector(
-      onTap: () {},
+      onTap: _resetAutoHide,
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.black.withOpacity(0.4),
+              Colors.black.withValues(alpha: 0.4),
               Colors.transparent,
               Colors.transparent,
-              Colors.black.withOpacity(0.6),
+              Colors.black.withValues(alpha: 0.6),
             ],
             stops: const [0.0, 0.2, 0.7, 1.0],
           ),
@@ -290,7 +310,8 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                 _buildVideoControlButton(
                   icon: Icons.replay_10_rounded,
                   onTap: () {
-                    final newPos = position - const Duration(seconds: 10);
+                    _resetAutoHide();
+                    final newPos = value.position - const Duration(seconds: 10);
                     controller.seekTo(
                       newPos < Duration.zero ? Duration.zero : newPos,
                     );
@@ -299,15 +320,14 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                 const SizedBox(width: 32),
                 GestureDetector(
                   onTap: () {
+                    _resetAutoHide();
                     setState(() {
-                      value.isPlaying
-                          ? controller.pause()
-                          : controller.play();
+                      value.isPlaying ? controller.pause() : controller.play();
                     });
                   },
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     padding: const EdgeInsets.all(16),
@@ -324,10 +344,9 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                 _buildVideoControlButton(
                   icon: Icons.forward_10_rounded,
                   onTap: () {
-                    final newPos = position + const Duration(seconds: 10);
-                    controller.seekTo(
-                      newPos > duration ? duration : newPos,
-                    );
+                    _resetAutoHide();
+                    final newPos = value.position + const Duration(seconds: 10);
+                    controller.seekTo(newPos > duration ? duration : newPos);
                   },
                 ),
               ],
@@ -338,7 +357,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
               child: Row(
                 children: [
                   Text(
-                    _formatVideoDuration(position),
+                    _formatVideoDuration(displayPosition),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -349,7 +368,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                     child: SliderTheme(
                       data: SliderThemeData(
                         activeTrackColor: Colors.white,
-                        inactiveTrackColor: Colors.white.withOpacity(0.3),
+                        inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
                         thumbColor: Colors.white,
                         thumbShape: const RoundSliderThumbShape(
                           enabledThumbRadius: 6,
@@ -358,17 +377,29 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                           overlayRadius: 14,
                         ),
                         trackHeight: 2,
-                        overlayColor: Colors.white.withOpacity(0.1),
+                        overlayColor: Colors.white.withValues(alpha: 0.1),
                       ),
                       child: Slider(
-                        value: position.inMilliseconds
+                        value: displayPosition.inMilliseconds
                             .toDouble()
                             .clamp(0.0, duration.inMilliseconds.toDouble()),
                         max: duration.inMilliseconds.toDouble(),
+                        onChangeStart: (val) {
+                          _isSeeking = true;
+                          _seekPosition = Duration(milliseconds: val.toInt());
+                          _autoHideTimer?.cancel();
+                          setState(() {});
+                        },
                         onChanged: (val) {
-                          controller.seekTo(
-                            Duration(milliseconds: val.toInt()),
-                          );
+                          _seekPosition = Duration(milliseconds: val.toInt());
+                          setState(() {});
+                        },
+                        onChangeEnd: (val) async {
+                          final seekTo = Duration(milliseconds: val.toInt());
+                          await controller.seekTo(seekTo);
+                          _isSeeking = false;
+                          _resetAutoHide();
+                          setState(() {});
                         },
                       ),
                     ),
@@ -384,7 +415,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -399,7 +430,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
@@ -431,7 +462,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+              colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
             ),
           ),
           child: Row(
@@ -569,7 +600,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -640,7 +671,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
@@ -692,7 +723,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+              colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
             ),
           ),
           child: Row(
@@ -782,7 +813,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen>
           Text(
             label,
             style: GoogleFonts.plusJakartaSans(
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.8),
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),

@@ -165,7 +165,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           border: Border.all(
             color: isSelected
                 ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         child: Text(
@@ -195,7 +195,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -210,7 +210,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           decoration: InputDecoration(
             hintText: 'Search photos, people, places...',
             hintStyle: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
             prefixIcon: Icon(
               Icons.search_rounded,
@@ -225,7 +225,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     Icons.mic_none_rounded,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.4),
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 15),
@@ -259,7 +259,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     fontSize: 12,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.5),
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -340,7 +340,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -352,7 +352,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (cat['color'] as Color).withOpacity(0.1),
+                      color: (cat['color'] as Color).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -394,7 +394,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               Icon(
                 Icons.search_off_rounded,
                 size: 64,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
               ),
               const SizedBox(height: 16),
               Text(
@@ -404,7 +404,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 style: TextStyle(
                   color: Theme.of(
                     context,
-                  ).colorScheme.onSurface.withOpacity(0.4),
+                  ).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ),
             ],
@@ -442,13 +442,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   width: 200,
                   height: 200,
                   placeholder: Container(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     child: const Center(
                       child: Icon(Icons.image, color: Colors.grey),
                     ),
                   ),
                   errorWidget: Container(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     child: const Center(
                       child: Icon(Icons.broken_image, color: Colors.grey),
                     ),

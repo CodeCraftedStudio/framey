@@ -107,7 +107,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                   ),
                   decoration: InputDecoration(
                     hintText: 'Search in ${album.name}...',
-                    hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+                    hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5)),
                     prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.close_rounded),
@@ -159,7 +159,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
       leading: Padding(
         padding: const EdgeInsets.all(8.0),
         child: CircleAvatar(
-          backgroundColor: Colors.black.withOpacity(0.2),
+          backgroundColor: Colors.black.withValues(alpha: 0.2),
           child: IconButton(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(
@@ -175,7 +175,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: CircleAvatar(
-              backgroundColor: Colors.black.withOpacity(0.2),
+              backgroundColor: Colors.black.withValues(alpha: 0.2),
               child: IconButton(
                 onPressed: () {
                   setState(() => _isSearching = true);
@@ -213,7 +213,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -238,7 +238,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                   : Container(
                       color: Theme.of(
                         context,
-                      ).colorScheme.primary.withOpacity(0.2),
+                      ).colorScheme.primary.withValues(alpha: 0.2),
                     ),
             ),
             Container(
@@ -248,10 +248,10 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                   end: Alignment.bottomCenter,
                   stops: const [0.0, 0.3, 0.7, 1.0],
                   colors: [
-                    Colors.black.withOpacity(0.3),
+                    Colors.black.withValues(alpha: 0.3),
                     Colors.transparent,
-                    Colors.black.withOpacity(0.2),
-                    Colors.black.withOpacity(0.7),
+                    Colors.black.withValues(alpha: 0.2),
+                    Colors.black.withValues(alpha: 0.7),
                   ],
                 ),
               ),
@@ -272,7 +272,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
               Icon(
                 Icons.search_off_rounded,
                 size: 48,
-                color: Colors.grey.withOpacity(0.5),
+                color: Colors.grey.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 16),
               Text(
@@ -314,7 +314,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -328,7 +328,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                       item.thumbnailUri != null
                           ? FrameyImage(uri: item.thumbnailUri!)
                           : Container(
-                              color: Colors.grey.withOpacity(0.1),
+                              color: Colors.grey.withValues(alpha: 0.1),
                               child: const Icon(
                                 Icons.image_rounded,
                                 color: Colors.grey,
@@ -341,7 +341,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
+                              color: Colors.black.withValues(alpha: 0.6),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -365,7 +365,7 @@ class _AlbumDetailsScreenState extends ConsumerState<AlbumDetailsScreen> {
                                 },
                               );
                             },
-                            splashColor: Colors.white.withOpacity(0.2),
+                            splashColor: Colors.white.withValues(alpha: 0.2),
                           ),
                         ),
                       ),

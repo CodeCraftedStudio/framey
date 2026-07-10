@@ -130,7 +130,7 @@ class _HiddenScreenState extends ConsumerState<HiddenScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -180,7 +180,7 @@ class _HiddenScreenState extends ConsumerState<HiddenScreen> {
           height: 16,
           margin: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
             shape: BoxShape.circle,
           ),
         ),
@@ -196,7 +196,7 @@ class _HiddenScreenState extends ConsumerState<HiddenScreen> {
           Icon(
             Icons.visibility_off_rounded,
             size: 80,
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           Text(
@@ -300,7 +300,7 @@ class _HiddenScreenState extends ConsumerState<HiddenScreen> {
               child: item.thumbnailUri != null
                   ? Image.file(File(item.thumbnailUri!), fit: BoxFit.cover)
                   : Container(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       child: const Icon(Icons.image),
                     ),
             ),

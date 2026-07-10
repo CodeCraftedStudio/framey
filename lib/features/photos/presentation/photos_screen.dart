@@ -218,23 +218,30 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
 
   Map<String, List<MediaItem>> _groupMediaByDate(List<MediaItem> items) {
     final Map<String, List<MediaItem>> grouped = {};
-    for (final item in items) {
-      final header = _getFormattedDate(item.dateAdded);
-      grouped.putIfAbsent(header, () => []).add(item);
-    }
-    return grouped;
-  }
-
-  String _getFormattedDate(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
-    final itemDate = DateTime(date.year, date.month, date.day);
+    final currentYearFormat = DateFormat('EEEE, MMM d');
+    final otherYearFormat = DateFormat('MMMM d, yyyy');
 
-    if (itemDate.isAtSameMomentAs(today)) return 'Today';
-    if (itemDate.isAtSameMomentAs(yesterday)) return 'Yesterday';
-    if (date.year == now.year) return DateFormat('EEEE, MMM d').format(date);
-    return DateFormat('MMMM d, yyyy').format(date);
+    for (final item in items) {
+      final date = item.dateAdded;
+      final itemDate = DateTime(date.year, date.month, date.day);
+
+      String header;
+      if (itemDate.isAtSameMomentAs(today)) {
+        header = 'Today';
+      } else if (itemDate.isAtSameMomentAs(yesterday)) {
+        header = 'Yesterday';
+      } else if (date.year == now.year) {
+        header = currentYearFormat.format(date);
+      } else {
+        header = otherYearFormat.format(date);
+      }
+
+      grouped.putIfAbsent(header, () => []).add(item);
+    }
+    return grouped;
   }
 
   @override
@@ -254,42 +261,48 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
             _exitSelectionMode();
           }
         },
-        child: CustomScrollView(
+        child: Scrollbar(
           controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            _buildAppBar(),
-            if (!_isSelectionMode) ...[
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-              _buildMemoriesGrid(),
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
-            ],
-            ...headers
-                .map((header) {
-                  final items = groupedMedia[header]!;
-                  if (items.isEmpty)
-                    return [const SliverToBoxAdapter(child: SizedBox.shrink())];
+          interactive: true,
+          thickness: 6,
+          radius: const Radius.circular(3),
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              _buildAppBar(),
+              if (!_isSelectionMode) ...[
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                _buildMemoriesGrid(),
+                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              ],
+              ...headers.map((header) {
+                final items = groupedMedia[header]!;
+                if (items.isEmpty) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
 
-                  return [
+                return SliverMainAxisGroup(
+                  slivers: [
                     _buildStickyHeader(header),
                     _buildMediaGrid(items),
                     const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                  ];
-                })
-                .expand((e) => e)
-                .toList(),
-            const SliverToBoxAdapter(child: SizedBox(height: 120)),
-            if (_isLoading)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ],
+                );
+              }),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              if (_isLoading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
                 ),
-              ),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
-          ],
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ),
         ),
       ),
     );
@@ -324,6 +337,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
     }
 
     return SliverAppBar(
+      pinned: true,
       floating: true,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -359,7 +373,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
             radius: 18,
             backgroundColor: Theme.of(
               context,
-            ).colorScheme.primary.withOpacity(0.1),
+            ).colorScheme.primary.withValues(alpha: 0.1),
             child: Text(
               'A',
               style: TextStyle(
@@ -423,7 +437,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withOpacity(0.8),
+                                Colors.black.withValues(alpha: 0.8),
                               ],
                             ),
                           ),
@@ -473,8 +487,10 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
       delegate: _DateHeaderDelegate(
         title: title,
         child: Container(
-          height: 48,
-          color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -535,7 +551,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
                           : null,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -554,7 +570,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.4),
+                                  color: Colors.black.withValues(alpha: 0.4),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -598,7 +614,7 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen>
       return FrameyImage(uri: item.thumbnailUri!);
     }
     return Container(
-      color: Colors.grey.withOpacity(0.1),
+      color: Colors.grey.withValues(alpha: 0.1),
       child: const Icon(Icons.image_rounded, color: Colors.grey),
     );
   }
@@ -632,7 +648,9 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get maxExtent => 48;
   @override
-  Widget build(BuildContext c, double s, bool o) => child;
+  Widget build(BuildContext c, double s, bool o) {
+    return SizedBox(height: maxExtent, child: child);
+  }
   @override
   bool shouldRebuild(_DateHeaderDelegate old) => title != old.title;
 }
